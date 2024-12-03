@@ -1,0 +1,10 @@
+{
+  "imports": {
+    "@deno-plc/adapter-osc": "jsr:@deno-plc/adapter-osc@^1.0.0",
+    "@deno/emit": "jsr:@deno/emit@^0.46.0"
+  },
+  "compilerOptions": {
+    "strict": true,
+    "lib": ["deno.window", "dom", "deno.unstable"]
+  }
+}
