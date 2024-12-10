@@ -1,10 +1,37 @@
 import { encodeOSC, decodeOSC, OSCArgs } from "@deno-plc/adapter-osc";
+import { ABLETON_HISTORY_WINDOW } from "./consts.ts";
+
+type ParameterChange = {
+  trackName: string;
+  deviceName: string;
+  paramName: string;
+  oldValue: number;
+  newValue: number;
+  min: number;
+  max: number;
+  timestamp: number;
+};
+
+type ParameterData = {
+  trackName: string;
+  deviceName: string;
+  paramName: string;
+  value: number;
+  min: number;
+  max: number;
+  debounceTimer?: number; // Optional param for ignoring smooth parameter transitions
+  isInitialValue: boolean;
+  timeLastModified: number;
+};
 
 export class OSCHandler {
   private connection: Deno.DatagramConn;
   private listeners: Map<string, ((args: OSCArgs) => void)[]>;
   private port: number = 11000;
   private hostname: string = "127.0.0.1";
+  private parameterMetadata: Map<string, ParameterData> = new Map();
+  private parameterChangeHistory: ParameterChange[] = [];
+  private readonly HISTORY_WINDOW = ABLETON_HISTORY_WINDOW;
 
   constructor(
     connection: Deno.DatagramConn,
@@ -115,6 +142,164 @@ export class OSCHandler {
     }
     return summary;
   };
+
+  // private shouldEvictFromCache(param: ParameterData) {
+  //   if (Date.now() - param.timeLastModified >)
+  // }
+
+  public async subscribeToDeviceParameters() {
+    // First get all tracks and their devices
+    const tracks = await this.getTracksDevices();
+
+    // Single listener for all parameter changes
+    this.on("/live/device/get/parameter/value", (args) => {
+      const [trackId, deviceId, paramId, value] = args;
+      const newValue = value as number;
+      const key = `${trackId}-${deviceId}-${paramId}`;
+      const metadata = this.parameterMetadata.get(key);
+
+      if (metadata) {
+        if (metadata.isInitialValue) {
+          metadata.isInitialValue = false;
+          this.parameterMetadata.set(key, metadata);
+          return;
+        }
+        // Clear existing timeout
+        if (metadata.debounceTimer) {
+          clearTimeout(metadata.debounceTimer);
+        }
+
+        // Set new timeout
+        metadata.debounceTimer = setTimeout(() => {
+          // Record the parameter change in history
+          this.parameterChangeHistory.push({
+            trackName: metadata.trackName,
+            deviceName: metadata.deviceName,
+            paramName: metadata.paramName,
+            oldValue: metadata.value,
+            newValue: newValue,
+            min: metadata.min,
+            max: metadata.max,
+            timestamp: Date.now(),
+          });
+
+          metadata.value = newValue;
+          metadata.timeLastModified = Date.now();
+          this.parameterMetadata.set(key, metadata);
+
+          // Clear the timer reference
+          metadata.debounceTimer = undefined;
+
+          console.log(`Parameter changed:
+        Track: ${metadata.trackName} (${trackId})
+        Device: ${metadata.deviceName} (${deviceId})
+        Parameter: ${metadata.paramName} (${paramId})
+        Value: ${value} (range: ${metadata.min}-${metadata.max})`);
+        }, 500);
+      }
+    });
+
+    // Set up listeners and store metadata
+    for (const track of tracks) {
+      for (const device of track.devices) {
+        const parameters = await this.getParameters(track.track_id, device.id);
+
+        parameters.forEach((param) => {
+          // Store metadata for this parameter
+          const key = `${track.track_id}-${device.id}-${param.param_id}`;
+          this.parameterMetadata.set(key, {
+            trackName: track.track_name.toString(),
+            deviceName: device.name.toString(),
+            paramName: param.name.toString(),
+            value: param.value as number,
+            min: parseFloat(param.min.toString()),
+            max: parseFloat(param.max.toString()),
+            isInitialValue: true,
+            timeLastModified: Date.now(),
+          });
+
+          // Start listening for this parameter
+          // send() instead of sendOSC() b/c we don't need listeners
+          this.send("/live/device/start_listen/parameter/value", [
+            track.track_id,
+            device.id,
+            param.param_id,
+          ]);
+        });
+      }
+    }
+  }
+
+  private filterRecentParameterChanges() {
+    const cutoffTime = Date.now() - this.HISTORY_WINDOW;
+    this.parameterChangeHistory = this.parameterChangeHistory.filter(
+      (change) => change.timestamp > cutoffTime
+    );
+  }
+
+  public getRecentParameterChanges(): string {
+    // Filter for last 10 minutes only when retrieving
+    this.filterRecentParameterChanges();
+    const minutesElapsed = (this.HISTORY_WINDOW / (1000 * 60)).toFixed(2);
+
+    if (this.parameterChangeHistory.length === 0) {
+      return `No parameter changes detected in the last ${minutesElapsed} minutes.`;
+    }
+
+    // Group changes by device
+    const changesByDevice = new Map<string, Map<string, ParameterChange>>();
+
+    this.parameterChangeHistory.forEach((change) => {
+      const deviceKey = `${change.trackName} - ${change.deviceName}`;
+      if (!changesByDevice.has(deviceKey)) {
+        changesByDevice.set(deviceKey, new Map<string, ParameterChange>());
+      }
+      const changesByDeviceParam = changesByDevice.get(deviceKey)!; // idk why TS wants me to assert ! here
+      const paramKey = `${change.paramName}`;
+      if (!changesByDeviceParam.has(paramKey)) {
+        changesByDeviceParam.set(paramKey, change);
+      } else {
+        const existingChange = changesByDeviceParam.get(paramKey)!; // idk why TS wants me to assert ! here
+        existingChange.newValue = change.newValue; // we only care about the first and last values, not any intermediate values
+        existingChange.timestamp = change.timestamp;
+        changesByDeviceParam.set(paramKey, existingChange);
+      }
+    });
+
+    // Format the changes into a readable summary
+    let summary = `Parameter changes in the last ${minutesElapsed} minutes:\n\n`;
+
+    changesByDevice.forEach((changes, trackDeviceKey) => {
+      summary += `${trackDeviceKey}:\n`;
+      changes.forEach((change) => {
+        summary += `  - ${change.paramName}: ${change.oldValue} → ${change.newValue}\n`;
+      });
+      summary += "\n";
+    });
+
+    return summary;
+  }
+
+  public async unsubscribeFromDeviceParameters() {
+    const tracks = await this.getTracksDevices();
+
+    this.parameterMetadata.clear();
+
+    for (const track of tracks) {
+      for (const device of track.devices) {
+        const parameters = await this.getParameters(track.track_id, device.id);
+
+        parameters.forEach((param) => {
+          // Stop listening for this parameter
+          this.sendOSC("/live/device/stop_listen/parameter/value", [
+            track.track_id,
+            device.id,
+            param.param_id,
+          ]);
+        });
+      }
+    }
+  }
 
   public getParameters = async (track_id: number, device_id: number) => {
     const names = await this.sendOSC("/live/device/get/parameters/name", [
