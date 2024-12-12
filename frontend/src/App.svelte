@@ -8,9 +8,14 @@
   let ws: WebSocket;
   let currentMessage = "";
   let isConnected = false;
+  let sessionId = "";
 
   onMount(() => {
-    messages = messageStorage.getMessages();
+    // Get or create session ID from localStorage
+    sessionId = localStorage.getItem("sessionId") || generateSessionId();
+    localStorage.setItem("sessionId", sessionId);
+
+    messages = messageStorage.getMessages(sessionId); // Modified to include sessionId
     connectWebSocket();
   });
 
@@ -20,18 +25,21 @@
     }
   });
 
+  function generateSessionId() {
+    return Math.random().toString(36).substring(2) + Date.now().toString(36);
+  }
+
   function connectWebSocket() {
-    ws = new WebSocket("ws://localhost:8000");
+    ws = new WebSocket(`ws://localhost:8000?sessionId=${sessionId}`);
 
     ws.onopen = () => {
       isConnected = true;
-      console.log("Connected to WebSocket server");
+      console.log("Connected to WebSocket server with session:", sessionId);
     };
 
     ws.onclose = () => {
       isConnected = false;
       console.log("Disconnected from WebSocket server");
-      // Try to reconnect after 2 seconds
       setTimeout(connectWebSocket, 2000);
     };
 
@@ -41,6 +49,7 @@
           messages = messageStorage.addMessage({
             text: currentMessage,
             isUser: false,
+            sessionId, // Include sessionId
           });
           currentMessage = "";
         }
@@ -63,9 +72,15 @@
     messages = messageStorage.addMessage({
       text: inputMessage,
       isUser: true,
+      sessionId, // Include sessionId
     });
 
-    ws.send(inputMessage);
+    ws.send(
+      JSON.stringify({
+        message: inputMessage,
+        sessionId,
+      })
+    );
     inputMessage = "";
   }
 
@@ -78,27 +93,49 @@
 
   function requestParameterChanges() {
     if (ws) {
-      ws.send("get-param-changes");
+      ws.send(
+        JSON.stringify({
+          message: "get-param-changes",
+          sessionId,
+        })
+      );
     }
   }
 
   function clearHistory() {
-    messageStorage.clearMessages();
+    messageStorage.clearMessages(sessionId); // Modified to include sessionId
     messages = [];
+  }
+
+  function startNewSession() {
+    sessionId = generateSessionId();
+    localStorage.setItem("sessionId", sessionId);
+    clearHistory();
+    if (ws) {
+      ws.close(); // This will trigger reconnection with new sessionId
+    }
   }
 </script>
 
 <main class="h-screen flex flex-col bg-gray-900 text-gray-100">
   <div class="border-b border-gray-800 p-4 flex justify-between items-center">
     <h1 class="text-xl font-semibold">Abby</h1>
-    <div
-      class={`px-3 py-1 rounded-full text-sm ${
-        isConnected
-          ? "bg-green-500/10 text-green-400"
-          : "bg-red-500/10 text-red-400"
-      }`}
-    >
-      {isConnected ? "Connected" : "Disconnected"}
+    <div class="flex items-center gap-4">
+      <button
+        on:click={startNewSession}
+        class="px-3 py-1 rounded-full text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+      >
+        Start New Chat
+      </button>
+      <div
+        class={`px-3 py-1 rounded-full text-sm ${
+          isConnected
+            ? "bg-green-500/10 text-green-400"
+            : "bg-red-500/10 text-red-400"
+        }`}
+      >
+        {isConnected ? "Connected" : "Disconnected"}
+      </div>
     </div>
   </div>
 
@@ -148,7 +185,7 @@
           aria-label="Send message"
           on:click={sendMessage}
           disabled={!isConnected || !inputMessage.trim()}
-          class="absolute bottom-3 right-3 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-lg flex items-center justify-center transition-colors"
+          class="absolute bottom-3 right-3 bg-blue-500/30 hover:bg-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-lg flex items-center justify-center transition-colors"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
