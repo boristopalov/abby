@@ -2,8 +2,11 @@ import { encodeOSC, decodeOSC, OSCArgs } from "@deno-plc/adapter-osc";
 import { ABLETON_HISTORY_WINDOW } from "./consts.ts";
 
 type ParameterChange = {
+  trackId: number;
   trackName: string;
+  deviceId: number;
   deviceName: string;
+  paramId: number;
   paramName: string;
   oldValue: number;
   newValue: number;
@@ -13,8 +16,11 @@ type ParameterChange = {
 };
 
 type ParameterData = {
+  trackId: number;
   trackName: string;
+  deviceId: number;
   deviceName: string;
+  paramId: number;
   paramName: string;
   value: number;
   min: number;
@@ -173,8 +179,11 @@ export class OSCHandler {
         metadata.debounceTimer = setTimeout(() => {
           // Record the parameter change in history
           this.parameterChangeHistory.push({
+            trackId: metadata.trackId,
             trackName: metadata.trackName,
+            deviceId: metadata.deviceId,
             deviceName: metadata.deviceName,
+            paramId: metadata.paramId,
             paramName: metadata.paramName,
             oldValue: metadata.value,
             newValue: newValue,
@@ -208,8 +217,11 @@ export class OSCHandler {
           // Store metadata for this parameter
           const key = `${track.track_id}-${device.id}-${param.param_id}`;
           this.parameterMetadata.set(key, {
+            trackId: track.track_id,
             trackName: track.track_name.toString(),
+            deviceId: device.id,
             deviceName: device.name.toString(),
+            paramId: param.param_id,
             paramName: param.name.toString(),
             value: param.value as number,
             min: parseFloat(param.min.toString()),
@@ -250,7 +262,7 @@ export class OSCHandler {
     const changesByDevice = new Map<string, Map<string, ParameterChange>>();
 
     this.parameterChangeHistory.forEach((change) => {
-      const deviceKey = `${change.trackName} - ${change.deviceName}`;
+      const deviceKey = `${change.trackName} (${change.trackId}) - ${change.deviceName} (${change.deviceId})`;
       if (!changesByDevice.has(deviceKey)) {
         changesByDevice.set(deviceKey, new Map<string, ParameterChange>());
       }
@@ -272,7 +284,7 @@ export class OSCHandler {
     changesByDevice.forEach((changes, trackDeviceKey) => {
       summary += `${trackDeviceKey}:\n`;
       changes.forEach((change) => {
-        summary += `  - ${change.paramName}: ${change.oldValue} → ${change.newValue}\n`;
+        summary += `  - ${change.paramName} (${change.paramId}): ${change.oldValue} → ${change.newValue}\n (Range: ${change.min} - ${change.max})`;
       });
       summary += "\n";
     });

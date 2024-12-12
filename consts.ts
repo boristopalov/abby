@@ -1,1 +1,1 @@
-export const ABLETON_HISTORY_WINDOW = 10 * 60 * 100; // 60 s
+export const ABLETON_HISTORY_WINDOW = 10 * 60 * 1000 * 3; // 30m

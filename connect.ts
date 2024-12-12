@@ -3,8 +3,6 @@ import "jsr:@std/dotenv/load";
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { generateResponse } from "./agent.ts";
 import { OSCHandler } from "./ableton.ts";
-import { ABLETON_HISTORY_WINDOW } from "./consts.ts";
-const abletonPort = 11000;
 const localOscPort = 11001;
 const webSocketServerPort = 8000;
 
@@ -64,8 +62,7 @@ if (!isLive) {
 await oscHandler.subscribeToDeviceParameters();
 console.log("Finished setting up handlers!");
 
-// log param changes every 10 minutes
-setInterval(async () => {
+async function getRecentParameterChanges() {
   const changesSummary = oscHandler.getRecentParameterChanges();
   console.log(changesSummary);
   if (changesSummary.includes("No parameter changes detected")) {
@@ -74,15 +71,23 @@ setInterval(async () => {
 
   const analysisMessage: Anthropic.MessageParam = {
     role: "user",
-    content: `Here are the recent parameter changes I've made in Ableton. Please analyze them and provide feedback or suggestions for improvement:
+    content: `Here are the recent parameter changes I've made in Ableton. Please analyze them and provide feedback or suggestions for improvement (if any- be somewhat conservative with your suggestions.):
 
 ${changesSummary}
 
-Please focus on:
-- Whether the parameter ranges look appropriate
-- Any potential improvements to the sound design
-- Suggestions for additional parameters to automate
-- Possible creative directions to explore`,
+For each suggestion:
+1. Explain the reasoning
+2. List the exact parameter changes you'd make (including track, device, parameter, and specific values)
+3. Make sure the suggested change is within the valid range of the parameter
+4. Mark the end of each suggestion with [SUGGESTION]
+
+Example format:
+"I suggest reducing the reverb decay to create more space in the mix:
+Track: Synth Lead
+Device: Reverb
+Parameter: Decay Time
+4.2s → 2.1s
+[SUGGESTION]"`,
   };
 
   messages.push(analysisMessage);
@@ -94,8 +99,11 @@ Please focus on:
       max_tokens: 2048,
     });
 
+    let currentSuggestions = "";
+
     stream.on("text", (textDelta) => {
       console.log("[Text Chunk]", textDelta);
+      currentSuggestions += textDelta;
       webSocket?.send(JSON.stringify(textDelta));
     });
 
@@ -106,18 +114,47 @@ Please focus on:
 
     const finalMessage = await stream.finalMessage();
     messages.push({ role: finalMessage.role, content: finalMessage.content });
+
+    if (currentSuggestions.includes("[SUGGESTION]")) {
+      // Send confirmation request to client
+      webSocket?.send(
+        JSON.stringify("Would you like me to apply these changes? (yes/no)")
+      );
+    }
   } catch (error) {
     console.error("Error analyzing parameter changes:", error);
   }
-}, ABLETON_HISTORY_WINDOW);
+}
 
 // Handle incoming messages from WebSocket
 async function handleWebSocketMessage(event: MessageEvent) {
+  if (event.data === "get-param-changes") {
+    await getRecentParameterChanges();
+    return;
+  }
+  if (event.data?.type === "suggestion_response") {
+    if (event.data.response === "yes") {
+      const executeMessage: Anthropic.MessageParam = {
+        role: "user",
+        content: `Yes, please make the suggestions you outlined.`,
+      };
+      await processMessage(executeMessage);
+    }
+    return;
+  }
   const userMessage: Anthropic.MessageParam = {
     role: "user",
     content: event.data,
   };
-  messages.push(userMessage);
+  await processMessage(userMessage);
+}
+
+const headers = new Headers({
+  "Access-Control-Allow-Origin": "*",
+});
+
+async function processMessage(message: Anthropic.MessageParam) {
+  messages.push(message);
 
   let continueLoop = true;
   while (continueLoop) {
@@ -258,10 +295,6 @@ async function handleWebSocketMessage(event: MessageEvent) {
     }
   }
 }
-
-const headers = new Headers({
-  "Access-Control-Allow-Origin": "*",
-});
 
 // client should send websocket messages to port 8000
 Deno.serve(
