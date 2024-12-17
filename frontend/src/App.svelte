@@ -96,7 +96,7 @@
   function startNewSession() {
     messageStorage.deleteActiveSession();
     if (ws) {
-      ws.close(); // This will trigger reconnection with new sessionId
+      ws.close(4000, "reset"); // This will trigger reconnection with new sessionId
     }
   }
 

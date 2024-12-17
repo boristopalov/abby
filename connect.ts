@@ -229,6 +229,7 @@ async function processMessage(message: Anthropic.MessageParam) {
 }
 
 let currentSessionId: string | null = null;
+let handlersInitialized = false;
 
 // Websocket stuff
 // client should send websocket messages to port 8000
@@ -250,12 +251,10 @@ Deno.serve(
       return new Response("Session ID is required", { status: 400, headers });
     }
 
-    let isNewSession = false;
     // Clear message history if this is a new session
     if (sessionId !== currentSessionId) {
       messages.length = 0; // Clear the messages array
       currentSessionId = sessionId;
-      isNewSession = true;
     }
 
     const { socket: _socket, response } = Deno.upgradeWebSocket(req);
@@ -263,8 +262,9 @@ Deno.serve(
     // Wait for the connection to be established
     ws.addEventListener("open", async () => {
       ws?.addEventListener("message", handleWebSocketMessage);
-      if (isNewSession) {
+      if (!handlersInitialized) {
         await oscHandler.subscribeToDeviceParameters(ws!);
+        handlersInitialized = true;
         console.log("Finished setting up handlers for new session!");
       } else {
         ws?.sendMessage({ type: "loading_progress", content: 100 });
