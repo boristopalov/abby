@@ -5,8 +5,9 @@ export interface WebSocketMessage {
     | "end_message"
     | "confirmation"
     | "error"
-    | "loading_progress";
-  content: string | number;
+    | "loading_progress"
+    | "parameter_change";
+  content: string | number | object;
 }
 
 // Extend the WebSocket type

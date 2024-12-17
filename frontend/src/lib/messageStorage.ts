@@ -154,6 +154,61 @@ class MessageStorage {
   }
 }
 
+export type ParameterChange = {
+  track: {
+    name: string;
+    id: number;
+  };
+  device: {
+    name: string;
+    id: number;
+  };
+  parameter: {
+    name: string;
+    id: number;
+    value: number;
+    range: {
+      min: number;
+      max: number;
+    };
+  };
+};
+
+class ParamStorage {
+  private readonly PARAM_CHANGES_KEY = "param_changes";
+  private readonly MAX_CHANGES = 100; // Limit stored changes to prevent excessive storage use
+
+  public addParamChange(change: ParameterChange) {
+    const changes = this.getStoredChanges();
+    changes.push({
+      ...change,
+      timestamp: Date.now(),
+    });
+
+    // Keep only the most recent changes
+    while (changes.length > this.MAX_CHANGES) {
+      changes.shift();
+    }
+
+    localStorage.setItem(this.PARAM_CHANGES_KEY, JSON.stringify(changes));
+    parameterChanges.set(changes);
+  }
+
+  private getStoredChanges(): (ParameterChange & { timestamp: number })[] {
+    const stored = localStorage.getItem(this.PARAM_CHANGES_KEY);
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  public clearChanges(): void {
+    localStorage.removeItem(this.PARAM_CHANGES_KEY);
+  }
+
+  public getRecentChanges(): (ParameterChange & { timestamp: number })[] {
+    console.log("Recent changes:", this.getStoredChanges());
+    return this.getStoredChanges();
+  }
+}
+
 export const messageStorage = new MessageStorage();
 const initialSession: ChatSession = messageStorage.getActiveSession() || {
   id: uuidv4(),
@@ -171,3 +226,8 @@ if (!localStorage.getItem("chat_sessions")) {
 }
 export const activeSession: Writable<ChatSession> = writable(initialSession);
 messageStorage.setActiveSession(initialSession.id);
+
+export const paramStorage = new ParamStorage();
+export const parameterChanges = writable<ParameterChange[]>(
+  paramStorage.getRecentChanges()
+);

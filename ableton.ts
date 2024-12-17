@@ -38,6 +38,7 @@ export class OSCHandler {
   private hostname: string = "127.0.0.1";
   private parameterMetadata: Map<string, ParameterData> = new Map();
   private parameterChangeHistory: ParameterChange[] = [];
+  private client: CustomWebSocket | undefined = undefined;
   private readonly HISTORY_WINDOW = ABLETON_HISTORY_WINDOW;
 
   constructor(
@@ -67,6 +68,14 @@ export class OSCHandler {
         console.error("Error processing OSC message:", error);
       }
     }
+  }
+
+  public setWsClient(ws: CustomWebSocket) {
+    this.client = ws;
+  }
+
+  public unsetWsClient() {
+    this.client = undefined;
   }
 
   public on(address: string, callback: (args: OSCArgs) => void) {
@@ -109,13 +118,13 @@ export class OSCHandler {
     });
   }
 
-  public getTracksDevices = async (ws?: CustomWebSocket) => {
+  public getTracksDevices = async () => {
     const summary = [];
 
     // Step 1: Get track count (10% progress)
-    if (ws) ws.sendMessage({ type: "loading_progress", content: 0 });
+    this.client?.sendMessage({ type: "loading_progress", content: 0 });
     const num_tracks = (await this.sendOSC("/live/song/get/num_tracks"))[0];
-    if (ws) ws.sendMessage({ type: "loading_progress", content: 10 });
+    this.client?.sendMessage({ type: "loading_progress", content: 10 });
 
     // Step 2: Get track data (20% progress)
     const track_data = await this.sendOSC("/live/song/get/track_data", [
@@ -123,18 +132,18 @@ export class OSCHandler {
       num_tracks,
       "track.name",
     ]);
-    if (ws) ws.sendMessage({ type: "loading_progress", content: 20 });
+    this.client?.sendMessage({ type: "loading_progress", content: 20 });
 
     // Step 3: Process each track (remaining 80% distributed across tracks)
     for (const [track_index, track_name] of track_data.entries()) {
       // Calculate progress per track
       const progressPerTrack = 30 / track_data.length;
       const currentProgress = 20 + progressPerTrack * track_index;
-      if (ws)
-        ws.sendMessage({
-          type: "loading_progress",
-          content: Math.round(currentProgress),
-        });
+
+      this.client?.sendMessage({
+        type: "loading_progress",
+        content: Math.round(currentProgress),
+      });
 
       const track_num_devices = (
         await this.sendOSC("/live/track/get/num_devices", [track_index])
@@ -169,7 +178,7 @@ export class OSCHandler {
     }
 
     // Final progress update
-    if (ws) ws.sendMessage({ type: "loading_progress", content: 50 });
+    this.client?.sendMessage({ type: "loading_progress", content: 50 });
 
     return summary;
   };
@@ -178,14 +187,14 @@ export class OSCHandler {
   //   if (Date.now() - param.timeLastModified >)
   // }
 
-  public async subscribeToDeviceParameters(ws: CustomWebSocket) {
+  public async subscribeToDeviceParameters() {
     // First get all tracks and their devices
-    ws.sendMessage({
+    this.client?.sendMessage({
       type: "loading_progress",
       content: 0,
     });
 
-    const tracks = await this.getTracksDevices(ws);
+    const tracks = await this.getTracksDevices();
 
     // Calculate total steps for progress tracking
     let totalDevices = 0;
@@ -195,6 +204,51 @@ export class OSCHandler {
 
     for (const track of tracks) {
       totalDevices += track.devices.length;
+    }
+
+    // Set up listeners and store metadata
+    for (const track of tracks) {
+      for (const device of track.devices) {
+        const parameters = await this.getParameters(track.track_id, device.id);
+        totalParams += parameters.length;
+
+        parameters.forEach((param) => {
+          // Store metadata for this parameter
+          const key = `${track.track_id}-${device.id}-${param.param_id}`;
+          this.parameterMetadata.set(key, {
+            trackId: track.track_id,
+            trackName: track.track_name.toString(),
+            deviceId: device.id,
+            deviceName: device.name.toString(),
+            paramId: param.param_id,
+            paramName: param.name.toString(),
+            value: param.value as number,
+            min: parseFloat(param.min.toString()),
+            max: parseFloat(param.max.toString()),
+            isInitialValue: false,
+            timeLastModified: Date.now(),
+          });
+
+          // Start listening for this parameter
+          this.send("/live/device/start_listen/parameter/value", [
+            track.track_id,
+            device.id,
+            param.param_id,
+          ]);
+
+          processedParams++;
+        });
+
+        processedDevices++;
+        // Calculate and send progress (50-100%)
+        const progress = Math.round(
+          50 + (processedDevices / totalDevices) * 50
+        );
+        this.client?.sendMessage({
+          type: "loading_progress",
+          content: progress,
+        });
+      }
     }
 
     // Single listener for all parameter changes
@@ -210,6 +264,12 @@ export class OSCHandler {
           this.parameterMetadata.set(key, metadata);
           return;
         }
+
+        // Skip if the value hasn't actually changed
+        if (metadata.value === newValue) {
+          return;
+        }
+
         // Clear existing timeout
         if (metadata.debounceTimer) {
           clearTimeout(metadata.debounceTimer);
@@ -238,62 +298,45 @@ export class OSCHandler {
 
           // Clear the timer reference
           metadata.debounceTimer = undefined;
-
-          console.log(`Parameter changed:
+          const log = `Parameter changed:
         Track: ${metadata.trackName} (${trackId})
         Device: ${metadata.deviceName} (${deviceId})
         Parameter: ${metadata.paramName} (${paramId})
-        Value: ${value} (range: ${metadata.min}-${metadata.max})`);
+        Value: ${value} (range: ${metadata.min}-${metadata.max})`;
+
+          try {
+            this.client?.sendMessage({
+              type: "parameter_change",
+              content: {
+                track: {
+                  name: metadata.trackName,
+                  id: trackId,
+                },
+                device: {
+                  name: metadata.deviceName,
+                  id: deviceId,
+                },
+                parameter: {
+                  name: metadata.paramName,
+                  id: paramId,
+                  value: value,
+                  range: {
+                    min: metadata.min,
+                    max: metadata.max,
+                  },
+                },
+              },
+            });
+          } catch (e) {
+            console.log("error sending websocket message", e);
+          }
+
+          console.log("PARAMETER CHANGE:", log);
         }, 500);
       }
     });
 
-    // Set up listeners and store metadata
-    for (const track of tracks) {
-      for (const device of track.devices) {
-        const parameters = await this.getParameters(track.track_id, device.id);
-        totalParams += parameters.length;
-
-        parameters.forEach((param) => {
-          // Store metadata for this parameter
-          const key = `${track.track_id}-${device.id}-${param.param_id}`;
-          this.parameterMetadata.set(key, {
-            trackId: track.track_id,
-            trackName: track.track_name.toString(),
-            deviceId: device.id,
-            deviceName: device.name.toString(),
-            paramId: param.param_id,
-            paramName: param.name.toString(),
-            value: param.value as number,
-            min: parseFloat(param.min.toString()),
-            max: parseFloat(param.max.toString()),
-            isInitialValue: true,
-            timeLastModified: Date.now(),
-          });
-
-          // Start listening for this parameter
-          this.send("/live/device/start_listen/parameter/value", [
-            track.track_id,
-            device.id,
-            param.param_id,
-          ]);
-
-          processedParams++;
-        });
-
-        processedDevices++;
-        // Calculate and send progress (50-100%)
-        const progress = Math.round(
-          50 + (processedDevices / totalDevices) * 50
-        );
-        ws.sendMessage({
-          type: "loading_progress",
-          content: progress,
-        });
-      }
-    }
-
-    ws.sendMessage({
+    this.client?.sendMessage({
       type: "loading_progress",
       content: 100,
     });
@@ -391,10 +434,14 @@ export class OSCHandler {
       device_id,
     ]);
 
+    // Ableton has placeholder parameters for some reason
+    // const offset = names.findIndex((name) => typeof name === "string");
+    // console.log("OFFSET:", offset);
+
     return Array.from({ length: names.length })
       .slice(2)
       .map((_, index) => ({
-        param_id: index,
+        param_id: index, // Changed from index
         name: names[index + 2],
         value: values[index + 2],
         min: mins[index + 2],
