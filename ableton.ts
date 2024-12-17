@@ -1,5 +1,6 @@
 import { encodeOSC, decodeOSC, OSCArgs } from "@deno-plc/adapter-osc";
 import { ABLETON_HISTORY_WINDOW } from "./consts.ts";
+import { CustomWebSocket } from "./types.d.ts";
 
 type ParameterChange = {
   trackId: number;
@@ -108,23 +109,41 @@ export class OSCHandler {
     });
   }
 
-  public getTracksDevices = async () => {
+  public getTracksDevices = async (ws?: CustomWebSocket) => {
     const summary = [];
-    const num_tracks = (await this.sendOSC("/live/song/get/num_tracks"))[0];
 
+    // Step 1: Get track count (10% progress)
+    if (ws) ws.sendMessage({ type: "loading_progress", content: 0 });
+    const num_tracks = (await this.sendOSC("/live/song/get/num_tracks"))[0];
+    if (ws) ws.sendMessage({ type: "loading_progress", content: 10 });
+
+    // Step 2: Get track data (20% progress)
     const track_data = await this.sendOSC("/live/song/get/track_data", [
       0,
       num_tracks,
       "track.name",
     ]);
+    if (ws) ws.sendMessage({ type: "loading_progress", content: 20 });
 
+    // Step 3: Process each track (remaining 80% distributed across tracks)
     for (const [track_index, track_name] of track_data.entries()) {
+      // Calculate progress per track
+      const progressPerTrack = 30 / track_data.length;
+      const currentProgress = 20 + progressPerTrack * track_index;
+      if (ws)
+        ws.sendMessage({
+          type: "loading_progress",
+          content: Math.round(currentProgress),
+        });
+
       const track_num_devices = (
         await this.sendOSC("/live/track/get/num_devices", [track_index])
       )[1];
+
       if (track_num_devices === 0) {
         continue;
       }
+
       const track_device_names = await this.sendOSC(
         "/live/track/get/devices/name",
         [track_index]
@@ -133,6 +152,7 @@ export class OSCHandler {
         "/live/track/get/devices/class_name",
         [track_index]
       );
+
       const devices = track_device_names.slice(1).map((name, index) => {
         return {
           id: index,
@@ -140,12 +160,17 @@ export class OSCHandler {
           class: track_device_classes[index + 1],
         };
       });
+
       summary.push({
         track_id: track_index,
         track_name: track_name,
         devices: devices,
       });
     }
+
+    // Final progress update
+    if (ws) ws.sendMessage({ type: "loading_progress", content: 50 });
+
     return summary;
   };
 
@@ -153,9 +178,24 @@ export class OSCHandler {
   //   if (Date.now() - param.timeLastModified >)
   // }
 
-  public async subscribeToDeviceParameters() {
+  public async subscribeToDeviceParameters(ws: CustomWebSocket) {
     // First get all tracks and their devices
-    const tracks = await this.getTracksDevices();
+    ws.sendMessage({
+      type: "loading_progress",
+      content: 0,
+    });
+
+    const tracks = await this.getTracksDevices(ws);
+
+    // Calculate total steps for progress tracking
+    let totalDevices = 0;
+    let processedDevices = 0;
+    let totalParams = 0;
+    let processedParams = 0;
+
+    for (const track of tracks) {
+      totalDevices += track.devices.length;
+    }
 
     // Single listener for all parameter changes
     this.on("/live/device/get/parameter/value", (args) => {
@@ -212,6 +252,7 @@ export class OSCHandler {
     for (const track of tracks) {
       for (const device of track.devices) {
         const parameters = await this.getParameters(track.track_id, device.id);
+        totalParams += parameters.length;
 
         parameters.forEach((param) => {
           // Store metadata for this parameter
@@ -231,15 +272,31 @@ export class OSCHandler {
           });
 
           // Start listening for this parameter
-          // send() instead of sendOSC() b/c we don't need listeners
           this.send("/live/device/start_listen/parameter/value", [
             track.track_id,
             device.id,
             param.param_id,
           ]);
+
+          processedParams++;
+        });
+
+        processedDevices++;
+        // Calculate and send progress (50-100%)
+        const progress = Math.round(
+          50 + (processedDevices / totalDevices) * 50
+        );
+        ws.sendMessage({
+          type: "loading_progress",
+          content: progress,
         });
       }
     }
+
+    ws.sendMessage({
+      type: "loading_progress",
+      content: 100,
+    });
   }
 
   private filterRecentParameterChanges() {

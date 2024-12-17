@@ -1,8 +1,13 @@
 #!/usr/bin/env deno --unstable-net run --allow-all
 import "jsr:@std/dotenv/load";
 import Anthropic from "npm:@anthropic-ai/sdk";
+import { Application } from "https://deno.land/x/oak/mod.ts";
 import { generateResponse } from "./agent.ts";
 import { OSCHandler } from "./ableton.ts";
+import { analysisMessage } from "./consts.ts";
+import { systemGenre, GENRE_SYSTEM_PROMPTS } from "./prompts.ts";
+import { CustomWebSocket, WebSocketMessage } from "./types.d.ts";
+import router from "./routes.ts";
 const localOscPort = 11001;
 const webSocketServerPort = 8000;
 
@@ -48,7 +53,16 @@ const tools: Anthropic.Tool[] = [
 
 const messages: Anthropic.MessageParam[] = [];
 
-let webSocket: WebSocket | undefined;
+// Create the extension function
+const extendWebSocket = (ws: WebSocket): CustomWebSocket => {
+  const extended = ws as CustomWebSocket;
+  extended.sendMessage = function (message: WebSocketMessage) {
+    this.send(JSON.stringify(message));
+  };
+  return extended;
+};
+
+let ws: CustomWebSocket | undefined;
 
 // UDP listener on port 110001
 const udpSocket = Deno.listenDatagram({ port: localOscPort, transport: "udp" });
@@ -59,38 +73,20 @@ if (!isLive) {
   console.log("Unable to connect to Ableton. Exiting...");
   Deno.exit(0);
 }
-await oscHandler.subscribeToDeviceParameters();
-console.log("Finished setting up handlers!");
 
 async function getRecentParameterChanges() {
   const changesSummary = oscHandler.getRecentParameterChanges();
-  console.log(changesSummary);
+  console.log("changes summary:", changesSummary);
+
   if (changesSummary.includes("No parameter changes detected")) {
+    ws?.sendMessage({
+      type: "error",
+      content: "No recent changes to any devices",
+    });
     return; // Skip if no changes
   }
 
-  const analysisMessage: Anthropic.MessageParam = {
-    role: "user",
-    content: `Here are the recent parameter changes I've made in Ableton. Please analyze them and provide feedback or suggestions for improvement (if any- be somewhat conservative with your suggestions.):
-
-${changesSummary}
-
-For each suggestion:
-1. Explain the reasoning
-2. List the exact parameter changes you'd make (including track, device, parameter, and specific values)
-3. Make sure the suggested change is within the valid range of the parameter
-4. Mark the end of each suggestion with [SUGGESTION]
-
-Example format:
-"I suggest reducing the reverb decay to create more space in the mix:
-Track: Synth Lead
-Device: Reverb
-Parameter: Decay Time
-4.2s → 2.1s
-[SUGGESTION]"`,
-  };
-
-  messages.push(analysisMessage);
+  messages.push(analysisMessage(changesSummary));
 
   try {
     const stream = anthropic.messages.stream({
@@ -104,31 +100,38 @@ Parameter: Decay Time
     stream.on("text", (textDelta) => {
       console.log("[Text Chunk]", textDelta);
       currentSuggestions += textDelta;
-      webSocket?.send(JSON.stringify(textDelta));
+      ws?.sendMessage({ type: "text", content: textDelta });
     });
 
     stream.on("end", () => {
       console.log("|END_MESSAGE|");
-      webSocket?.send("<|END_MESSAGE|>");
+      ws?.sendMessage({ type: "end_message", content: "<|END_MESSAGE|>" });
     });
 
     const finalMessage = await stream.finalMessage();
     messages.push({ role: finalMessage.role, content: finalMessage.content });
 
+    // does this work lol
     if (currentSuggestions.includes("[SUGGESTION]")) {
       // Send confirmation request to client
-      webSocket?.send(
-        JSON.stringify("Would you like me to apply these changes? (yes/no)")
-      );
+      ws?.sendMessage({
+        type: "confirmation",
+        content: "Would you like me to apply these changes? (yes/no)",
+      });
     }
   } catch (error) {
+    ws?.sendMessage({
+      type: "error",
+      content: `Error analyzing parameter changes: ${error}`,
+    });
     console.error("Error analyzing parameter changes:", error);
   }
 }
 
 // Handle incoming messages from WebSocket
 async function handleWebSocketMessage(event: MessageEvent) {
-  if (event.data === "get-param-changes") {
+  console.log("EVENT: ", event.data);
+  if (JSON.parse(event.data).message === "get-param-changes") {
     await getRecentParameterChanges();
     return;
   }
@@ -162,97 +165,22 @@ async function processMessage(message: Anthropic.MessageParam) {
       const stream = anthropic.messages.stream({
         messages,
         model: "claude-3-5-sonnet-20241022",
-        system: `You are an expert electronic music producer and sound designer with deep knowledge of Ableton Live. Your goal is to help create innovative, professional-quality electronic music.
-
-				Key principles to follow:
-				- Focus on experimentation and creative sound design
-				- Maintain proper gain staging and avoid clipping
-				- Use automation thoughtfully to create movement
-				- Apply effects in parallel when appropriate
-				- Layer sounds strategically for fuller arrangements
-				- Pay attention to frequency balance across the mix
-				
-				Ableton-specific guidelines:
-				- Utilize Ableton's native devices creatively (Operator, Wavetable, Echo, etc.)
-				- Group tracks logically and use return tracks for shared effects
-				- Take advantage of macro controls for expressive sound design
-				- Use rack chains and random/velocity modulation
-				- Apply sidechain compression thoughtfully
-				- Leverage clip envelopes and automation for dynamic changes
-				
-				Production techniques to consider:
-				- Sound layering and frequency splitting
-				- Creative resampling, bouncing to audio, and audio manipulation
-				- Strategic use of reverb and delay
-				- Modulation (LFO, envelope followers)
-				- Parallel processing
-				- Stereo field manipulation
-
-
-				Advanced Techniques:
-				1. Creative Bass Design:
-					 - Growling Bass: Operator (FM ratio 1:2) → Saturator (Drive 12dB, Curve 'Medium') → Auto Filter (LFO rate 1/16, amount 40%) → OTT (Depth 40%)
-					 - Deep Sub Layer: Operator (sine) → Saturator (Soft Sine) → EQ Eight (boost 55Hz +3dB, cut 30Hz -24dB) → Utility (mono below 120Hz)
-					 - Neuro Bass: Resample audio → Frequency Shifter (LFO on Fine control) → Grain Delay (spray 50%) → Auto Filter (envelope follower)
-				
-				2. Atmospheric Textures:
-					 - Evolving Pad: Wavetable (position modulation via LFO 0.1Hz) → Chorus (rate 0.3Hz) → Echo (L:1/4 R:1/4 dot, 40% feedback) → Reverb (6s, 40% wet)
-					 - Granular Landscape: Sampler (reverse grain) → Beat Repeat (variation 25%) → Reverb (100% wet) → Auto Pan (rate 1/8)
-					 - Textural Drone: Resonator (pitch shifted notes I, III, V) → Erosion (wide noise) → Reverb (pre-delay 100ms) → Limiter
-				
-				3. Drum Processing Chains:
-					 - Punchy Kick: Drum Bus (drive 20%, crunch) → Glue Compressor (threshold -20dB, ratio 4:1) → EQ Eight (boost 55Hz, cut 350Hz) → Saturator
-					 - Snare Thickener: Parallel compression (ratio 10:1) → Short Room Reverb (0.4s) → Dynamic Tube (drive 30%) → EQ (+5dB at 200Hz)
-					 - Hi-Hat Grove: Auto Filter (bandpass) → Beat Repeat (1/32 grid) → Erosion → Delay (ping pong 1/16)
-				
-				4. Modulation Experiments:
-					 - Filter Rhythm: Map LFO (rate 1/8T) to filter cutoff (20-100%) → Map velocity to resonance (0-40%) → Map random to delay time
-					 - Texture Morph: Envelope follower on amplitude → Control grain size in Grain Delay → Modulate reverb decay (1-8s range)
-					 - Dynamic Movement: Sidechain from kick → Control reverb size (50-100%) → Modulate chorus rate (0.1-2Hz) → Pan width (0-50%)
-				
-				5. Effect Racks:
-					 - Space Designer:
-						 Chain 1: Small room (0.4s) → EQ cut highs → 100% wet
-						 Chain 2: Large hall (2.5s) → High pass → 30% wet
-						 Chain 3: Delay (3/16) → Reverb → 20% wet
-						 Macro 1: Chain selector
-						 Macro 2: Global decay
-						 Macro 3: Low cut frequency
-				
-					 - Texture Mangler:
-						 Chain 1: Frequency Shifter → Grain Delay → Auto Pan
-						 Chain 2: Resonator → Chorus → Filter
-						 Chain 3: Beat Repeat → Erosion → Phaser
-						 Macro 1: Effect intensity
-						 Macro 2: Modulation rate
-						 Macro 3: Wet/dry
-				
-				6. Sound Layering Examples:
-					 - Future Bass Chord:
-						 Layer 1: Wavetable (super saw) → Chorus → EQ (boost 2kHz)
-						 Layer 2: Operator (FM bells) → Reverb → High pass at 500Hz
-						 Layer 3: Noise → Auto Filter → Very short decay
-						 Group: Glue Compressor → OTT → Utility (width 120%)
-				
-					 - Complex Lead:
-						 Layer 1: Wavetable (sharp attack) → Saturator → Delay
-						 Layer 2: Operator (harmonic content) → Auto Filter → Chorus
-						 Layer 3: Sampler (transient layer) → Drum Bus → Short reverb
-						 Group: Dynamic Tube → EQ Eight → Utility
-
-				Always respond in lowercase and aim to create unique, professional-sounding results using the available tools.`,
+        system:
+          GENRE_SYSTEM_PROMPTS[
+            systemGenre as keyof typeof GENRE_SYSTEM_PROMPTS
+          ],
         max_tokens: 2048,
         tools,
       });
 
       stream.on("text", (textDelta) => {
         console.log("[Text Chunk]", textDelta);
-        webSocket?.send(JSON.stringify(textDelta));
+        ws?.sendMessage({ type: "text", content: textDelta });
       });
 
       stream.on("end", () => {
         console.log("|END_MESSAGE|");
-        webSocket?.send("<|END_MESSAGE|>");
+        ws?.sendMessage({ type: "end_message", content: "<|END_MESSAGE|>" });
       });
 
       const finalMessagePromise = new Promise<void>((resolve) => {
@@ -265,6 +193,10 @@ async function processMessage(message: Anthropic.MessageParam) {
           for (const contentBlock of msg.content) {
             if (contentBlock.type === "tool_use") {
               hasToolUse = true;
+              ws?.sendMessage({
+                type: "tool",
+                content: contentBlock.name,
+              });
               const response = await generateResponse(oscHandler, contentBlock);
               if (response.is_error) {
                 throw new Error("tool usage failed!");
@@ -289,13 +221,16 @@ async function processMessage(message: Anthropic.MessageParam) {
     } catch (error) {
       console.error("Error processing message:", error);
       if (error instanceof Error) {
-        webSocket?.send(`Error: ${error.message}`);
+        ws?.sendMessage({ type: "error", content: `Error: ${error.message}` });
       }
       continueLoop = false;
     }
   }
 }
 
+let currentSessionId: string | null = null;
+
+// Websocket stuff
 // client should send websocket messages to port 8000
 Deno.serve(
   {
@@ -308,10 +243,58 @@ Deno.serve(
       return new Response(null, { status: 501, headers });
     }
 
-    const { socket: _socket, response } = Deno.upgradeWebSocket(req);
-    webSocket = _socket;
+    const url = new URL(req.url);
+    const sessionId = url.searchParams.get("sessionId");
 
-    webSocket.addEventListener("message", handleWebSocketMessage);
+    if (!sessionId) {
+      return new Response("Session ID is required", { status: 400, headers });
+    }
+
+    let isNewSession = false;
+    // Clear message history if this is a new session
+    if (sessionId !== currentSessionId) {
+      messages.length = 0; // Clear the messages array
+      currentSessionId = sessionId;
+      isNewSession = true;
+    }
+
+    const { socket: _socket, response } = Deno.upgradeWebSocket(req);
+    ws = extendWebSocket(_socket);
+    // Wait for the connection to be established
+    ws.addEventListener("open", async () => {
+      ws?.addEventListener("message", handleWebSocketMessage);
+      if (isNewSession) {
+        await oscHandler.subscribeToDeviceParameters(ws!);
+        console.log("Finished setting up handlers for new session!");
+      } else {
+        ws?.sendMessage({ type: "loading_progress", content: 100 });
+        console.log("Reusing existing parameter subscriptions");
+      }
+    });
     return response;
   }
 );
+
+// REST stuff
+const app = new Application();
+app.use((ctx, next) => {
+  ctx.response.headers.set("Access-Control-Allow-Origin", "*");
+  ctx.response.headers.set(
+    "Access-Control-Allow-Methods",
+    "GET, POST, OPTIONS"
+  );
+  ctx.response.headers.set("Access-Control-Allow-Headers", "Content-Type");
+  return next();
+});
+app.use(async (ctx, next) => {
+  if (ctx.request.method === "OPTIONS") {
+    ctx.response.status = 200;
+    return;
+  }
+  await next();
+});
+app.use(router.routes());
+app.use(router.allowedMethods());
+
+app.listen({ port: 8080 });
+console.log("REST server listening on port 8080");
