@@ -4,6 +4,7 @@ import {
   setSystemGenre,
   systemGenre,
 } from "./prompts.ts";
+import { oscHandler } from "./connect.ts";
 
 const router = new Router();
 
@@ -33,4 +34,10 @@ router.post("/api/genre", async (ctx) => {
     currentGenre: systemGenre,
   };
 });
+
+router.get("/api/parameter-changes", (ctx) => {
+  const changes = oscHandler.getRecentParameterChanges();
+  ctx.response.body = { changes };
+});
+
 export default router;

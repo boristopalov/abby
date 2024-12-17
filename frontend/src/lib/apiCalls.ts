@@ -1,3 +1,5 @@
+import { type ParameterChange } from "./messageStorage.ts";
+
 // Client-side code
 const base_uri = `http://localhost:8080`;
 type GenreResponse = {
@@ -30,4 +32,10 @@ export async function setGenre(genre: string) {
   } catch (error) {
     console.error("Error setting genre:", error);
   }
+}
+
+export async function getRecentParameterChanges(): Promise<ParameterChange[]> {
+  const response = await fetch(`${base_uri}/api/parameter-changes`);
+  const data = await response.json();
+  return data.changes;
 }

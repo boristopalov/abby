@@ -8,7 +8,11 @@
     paramStorage,
   } from "./lib/messageStorage";
   import "./app.css";
-  import { fetchGenres, setGenre } from "./lib/apiCalls";
+  import {
+    fetchGenres,
+    getRecentParameterChanges,
+    setGenre,
+  } from "./lib/apiCalls";
   import { slide } from "svelte/transition";
   interface WebSocketMessage {
     type:
@@ -103,6 +107,13 @@
     }
   }
 
+  // Poll every minute
+  setInterval(async () => {
+    const changes = await getRecentParameterChanges();
+    console.log("recent changes:", changes);
+    paramStorage.setChanges(changes);
+  }, 60000);
+
   function startNewSession() {
     messageStorage.deleteActiveSession();
     if (ws) {
@@ -149,6 +160,7 @@
         break;
 
       case "parameter_change":
+        console.log("PARAMETER CHANGE:", data.content);
         paramStorage.addParamChange(data.content as ParameterChange);
         showParameterPanel = true;
         break;
@@ -182,6 +194,7 @@
     <div class="flex items-center gap-4">
       <button
         on:click={startNewSession}
+        hidden={!isConnected}
         disabled={isLoading}
         class="px-3 py-1 rounded-full text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
       >
@@ -368,11 +381,25 @@
           </div>
           <div class="flex-1 overflow-y-auto p-4 space-y-2">
             {#each $parameterChanges as change}
-              <div class="bg-gray-800 rounded-lg p-3 text-sm">
-                {change.track.name}
-                {change.device.name}
-                {change.parameter.name}
-                {change.parameter.value}
+              <div
+                class="border-l-2 border-purple-500/30 pl-3 mb-3 hover:border-purple-500/50 transition-colors"
+              >
+                <div class="text-xs text-gray-400 mb-1">
+                  {change.trackName} / {change.deviceName}
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-sm text-gray-300">{change.paramName}</span>
+                  <span
+                    class="text-xs font-mono bg-blue-500/10 text-blue-300 px-2 py-0.5 rounded"
+                  >
+                    {change.oldValue.toFixed(2)} --> {change.newValue.toFixed(
+                      2
+                    )}
+                  </span>
+                </div>
+                <div class="text-xs text-gray-500 mt-1">
+                  {new Date(change.timestamp).toLocaleTimeString()}
+                </div>
               </div>
             {/each}
           </div>

@@ -66,7 +66,7 @@ let ws: CustomWebSocket | undefined;
 
 // UDP listener on port 110001
 const udpSocket = Deno.listenDatagram({ port: localOscPort, transport: "udp" });
-const oscHandler = new OSCHandler(udpSocket);
+export const oscHandler = new OSCHandler(udpSocket);
 
 const isLive = await oscHandler.isLive();
 if (!isLive) {
@@ -78,7 +78,7 @@ async function getRecentParameterChanges() {
   const changesSummary = oscHandler.getRecentParameterChanges();
   console.log("changes summary:", changesSummary);
 
-  if (changesSummary.includes("No parameter changes detected")) {
+  if (changesSummary.length === 0) {
     ws?.sendMessage({
       type: "error",
       content: "No recent changes to any devices",
@@ -86,7 +86,7 @@ async function getRecentParameterChanges() {
     return; // Skip if no changes
   }
 
-  messages.push(analysisMessage(changesSummary));
+  messages.push(analysisMessage(JSON.stringify(changesSummary)));
 
   try {
     const stream = anthropic.messages.stream({

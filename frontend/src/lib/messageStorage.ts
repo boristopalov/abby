@@ -155,23 +155,17 @@ class MessageStorage {
 }
 
 export type ParameterChange = {
-  track: {
-    name: string;
-    id: number;
-  };
-  device: {
-    name: string;
-    id: number;
-  };
-  parameter: {
-    name: string;
-    id: number;
-    value: number;
-    range: {
-      min: number;
-      max: number;
-    };
-  };
+  trackId: number;
+  trackName: string;
+  deviceId: number;
+  deviceName: string;
+  paramId: number;
+  paramName: string;
+  oldValue: number;
+  newValue: number;
+  min: number;
+  max: number;
+  timestamp: number;
 };
 
 class ParamStorage {
@@ -180,10 +174,7 @@ class ParamStorage {
 
   public addParamChange(change: ParameterChange) {
     const changes = this.getStoredChanges();
-    changes.push({
-      ...change,
-      timestamp: Date.now(),
-    });
+    changes.push(change);
 
     // Keep only the most recent changes
     while (changes.length > this.MAX_CHANGES) {
@@ -194,7 +185,7 @@ class ParamStorage {
     parameterChanges.set(changes);
   }
 
-  private getStoredChanges(): (ParameterChange & { timestamp: number })[] {
+  private getStoredChanges(): ParameterChange[] {
     const stored = localStorage.getItem(this.PARAM_CHANGES_KEY);
     return stored ? JSON.parse(stored) : [];
   }
@@ -203,9 +194,13 @@ class ParamStorage {
     localStorage.removeItem(this.PARAM_CHANGES_KEY);
   }
 
-  public getRecentChanges(): (ParameterChange & { timestamp: number })[] {
-    console.log("Recent changes:", this.getStoredChanges());
+  public getRecentChanges(): ParameterChange[] {
     return this.getStoredChanges();
+  }
+
+  public setChanges(changes: ParameterChange[]) {
+    localStorage.setItem(this.PARAM_CHANGES_KEY, JSON.stringify(changes));
+    parameterChanges.set(changes);
   }
 }
 

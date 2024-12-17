@@ -277,8 +277,7 @@ export class OSCHandler {
 
         // Set new timeout
         metadata.debounceTimer = setTimeout(() => {
-          // Record the parameter change in history
-          this.parameterChangeHistory.push({
+          const change = {
             trackId: metadata.trackId,
             trackName: metadata.trackName,
             deviceId: metadata.deviceId,
@@ -290,7 +289,9 @@ export class OSCHandler {
             min: metadata.min,
             max: metadata.max,
             timestamp: Date.now(),
-          });
+          };
+          // Record the parameter change in history
+          this.parameterChangeHistory.push(change);
 
           metadata.value = newValue;
           metadata.timeLastModified = Date.now();
@@ -307,25 +308,7 @@ export class OSCHandler {
           try {
             this.client?.sendMessage({
               type: "parameter_change",
-              content: {
-                track: {
-                  name: metadata.trackName,
-                  id: trackId,
-                },
-                device: {
-                  name: metadata.deviceName,
-                  id: deviceId,
-                },
-                parameter: {
-                  name: metadata.paramName,
-                  id: paramId,
-                  value: value,
-                  range: {
-                    min: metadata.min,
-                    max: metadata.max,
-                  },
-                },
-              },
+              content: change,
             });
           } catch (e) {
             console.log("error sending websocket message", e);
@@ -349,47 +332,15 @@ export class OSCHandler {
     );
   }
 
-  public getRecentParameterChanges(): string {
+  public getRecentParameterChanges(): ParameterChange[] {
     // Filter for last 10 minutes only when retrieving
     this.filterRecentParameterChanges();
-    const minutesElapsed = (this.HISTORY_WINDOW / (1000 * 60)).toFixed(2);
 
     if (this.parameterChangeHistory.length === 0) {
-      return `No parameter changes detected in the last ${minutesElapsed} minutes.`;
+      return [];
     }
 
-    // Group changes by device
-    const changesByDevice = new Map<string, Map<string, ParameterChange>>();
-
-    this.parameterChangeHistory.forEach((change) => {
-      const deviceKey = `${change.trackName} (${change.trackId}) - ${change.deviceName} (${change.deviceId})`;
-      if (!changesByDevice.has(deviceKey)) {
-        changesByDevice.set(deviceKey, new Map<string, ParameterChange>());
-      }
-      const changesByDeviceParam = changesByDevice.get(deviceKey)!; // idk why TS wants me to assert ! here
-      const paramKey = `${change.paramName}`;
-      if (!changesByDeviceParam.has(paramKey)) {
-        changesByDeviceParam.set(paramKey, change);
-      } else {
-        const existingChange = changesByDeviceParam.get(paramKey)!; // idk why TS wants me to assert ! here
-        existingChange.newValue = change.newValue; // we only care about the first and last values, not any intermediate values
-        existingChange.timestamp = change.timestamp;
-        changesByDeviceParam.set(paramKey, existingChange);
-      }
-    });
-
-    // Format the changes into a readable summary
-    let summary = `Parameter changes in the last ${minutesElapsed} minutes:\n\n`;
-
-    changesByDevice.forEach((changes, trackDeviceKey) => {
-      summary += `${trackDeviceKey}:\n`;
-      changes.forEach((change) => {
-        summary += `  - ${change.paramName} (${change.paramId}): ${change.oldValue} → ${change.newValue}\n (Range: ${change.min} - ${change.max})`;
-      });
-      summary += "\n";
-    });
-
-    return summary;
+    return this.parameterChangeHistory;
   }
 
   public async unsubscribeFromDeviceParameters() {
