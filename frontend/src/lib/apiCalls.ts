@@ -1,50 +1,105 @@
-import { type ParameterChange } from "./messageStorage.ts";
+import { type ChatMessage } from "../types.d.ts";
 
-// Client-side code
-const base_uri = `http://localhost:8080`;
-type GenreResponse = {
-  defaultGenre: string;
-  genres: string[];
-};
-export async function fetchGenres(): Promise<GenreResponse> {
-  const response = await fetch(`${base_uri}/api/genres`);
-  const data = await response.json();
-  return data; // { genres: string[], defaultGenre: string }
+// Import the types from the backend
+interface Genre {
+  name: string;
+  systemPrompt: string;
+  isDefault: boolean;
 }
 
-// Add this function to handle genre selection
-export async function setGenre(genre: string) {
-  try {
-    const response = await fetch(`${base_uri}/api/genre`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ genre }),
-    });
+interface GenresResponse {
+  genres: string[];
+  defaultGenre: string | null;
+  currentGenre: string | null;
+}
 
-    if (!response.ok) {
-      throw new Error("Failed to set genre");
-    }
+interface ParameterChange {
+  trackId: number;
+  trackName: string;
+  deviceId: number;
+  deviceName: string;
+  paramId: number;
+  paramName: string;
+  oldValue: number;
+  newValue: number;
+  min: number;
+  max: number;
+  timestamp: number;
+}
 
-    // You might want to add some visual feedback here
-    console.log(`Genre ${genre} selected successfully`);
-  } catch (error) {
-    console.error("Error setting genre:", error);
+interface RandomGenreResponse {
+  genre: string;
+}
+
+const SERVER_BASE_URI = `http://localhost:8080`;
+
+export async function fetchGenres(): Promise<GenresResponse> {
+  const response = await fetch(`${SERVER_BASE_URI}/genres`);
+  const data: GenresResponse = await response.json();
+  if (!response.ok) {
+    throw new Error("Failed to fetch genres");
   }
+  return data;
+}
+
+export async function setGenre(genre: string): Promise<boolean> {
+  const response = await fetch(`${SERVER_BASE_URI}/genres/set-current`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ genre }),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to set genre");
+  }
+  return true;
+}
+
+export async function setDefaultGenre(genre: string): Promise<boolean> {
+  const response = await fetch(`${SERVER_BASE_URI}/genres/set-default`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ genre }),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to set default genre");
+  }
+  return true;
 }
 
 export async function getRecentParameterChanges(): Promise<ParameterChange[]> {
-  const response = await fetch(`${base_uri}/api/parameter-changes`);
-  const data = await response.json();
-  return data.changes;
+  const response = await fetch(`${SERVER_BASE_URI}/parameter-changes`);
+  const data: ParameterChange[] = await response.json();
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch parameter changes");
+  }
+  return data;
 }
 
 export async function generateRandomGenre(): Promise<string> {
-  const response = await fetch(`${base_uri}/api/random-genre`);
-  const data = await response.json();
+  const response = await fetch(`${SERVER_BASE_URI}/random-genre`);
+  const data: RandomGenreResponse = await response.json();
   if (!response.ok) {
-    throw new Error(data.error || "Failed to generate random genre");
+    throw new Error("Failed to generate random genre");
   }
   return data.genre;
+}
+
+export async function getSessionMessages(
+  sessionId: string
+): Promise<ChatMessage[]> {
+  const response = await fetch(
+    `${SERVER_BASE_URI}/session/${sessionId}/messages`
+  );
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch session messages");
+  }
+
+  return data.messages;
 }

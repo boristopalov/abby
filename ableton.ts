@@ -1,20 +1,7 @@
 import { encodeOSC, decodeOSC, OSCArgs } from "@deno-plc/adapter-osc";
 import { ABLETON_HISTORY_WINDOW } from "./consts.ts";
 import { CustomWebSocket } from "./types.d.ts";
-
-type ParameterChange = {
-  trackId: number;
-  trackName: string;
-  deviceId: number;
-  deviceName: string;
-  paramId: number;
-  paramName: string;
-  oldValue: number;
-  newValue: number;
-  min: number;
-  max: number;
-  timestamp: number;
-};
+import { dbService } from "./db.ts";
 
 type ParameterData = {
   trackId: number;
@@ -26,7 +13,7 @@ type ParameterData = {
   value: number;
   min: number;
   max: number;
-  debounceTimer?: number; // Optional param for ignoring smooth parameter transitions
+  debounceTimer?: number;
   isInitialValue: boolean;
   timeLastModified: number;
 };
@@ -37,7 +24,6 @@ export class OSCHandler {
   private port: number = 11000;
   private hostname: string = "127.0.0.1";
   private parameterMetadata: Map<string, ParameterData> = new Map();
-  private parameterChangeHistory: ParameterChange[] = [];
   private client: CustomWebSocket | undefined = undefined;
   private readonly HISTORY_WINDOW = ABLETON_HISTORY_WINDOW;
 
@@ -299,8 +285,9 @@ export class OSCHandler {
             max: metadata.max,
             timestamp: Date.now(),
           };
-          // Record the parameter change in history
-          this.parameterChangeHistory.push(change);
+
+          // Store the parameter change in the database
+          dbService.addParameterChange(change);
 
           metadata.value = newValue;
           metadata.timeLastModified = Date.now();
@@ -308,11 +295,6 @@ export class OSCHandler {
 
           // Clear the timer reference
           metadata.debounceTimer = undefined;
-          const log = `Parameter changed:
-        Track: ${metadata.trackName} (${trackId})
-        Device: ${metadata.deviceName} (${deviceId})
-        Parameter: ${metadata.paramName} (${paramId})
-        Value: ${value} (range: ${metadata.min}-${metadata.max})`;
 
           try {
             this.client?.sendMessage({
@@ -323,7 +305,13 @@ export class OSCHandler {
             console.log("error sending websocket message", e);
           }
 
-          console.log("PARAMETER CHANGE:", log);
+          console.log(
+            "PARAMETER CHANGE:",
+            `Track: ${metadata.trackName} (${trackId})
+             Device: ${metadata.deviceName} (${deviceId})
+             Parameter: ${metadata.paramName} (${paramId})
+             Value: ${value} (range: ${metadata.min}-${metadata.max})`
+          );
         }, 500);
       }
     });
@@ -334,22 +322,8 @@ export class OSCHandler {
     });
   }
 
-  private filterRecentParameterChanges() {
-    const cutoffTime = Date.now() - this.HISTORY_WINDOW;
-    this.parameterChangeHistory = this.parameterChangeHistory.filter(
-      (change) => change.timestamp > cutoffTime
-    );
-  }
-
-  public getRecentParameterChanges(): ParameterChange[] {
-    // Filter for last 10 minutes only when retrieving
-    this.filterRecentParameterChanges();
-
-    if (this.parameterChangeHistory.length === 0) {
-      return [];
-    }
-
-    return this.parameterChangeHistory;
+  public getRecentParameterChanges() {
+    return dbService.getRecentParameterChanges();
   }
 
   public async unsubscribeFromDeviceParameters() {

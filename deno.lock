@@ -1,13 +1,17 @@
 {
   "version": "4",
   "specifiers": {
+    "jsr:@db/sqlite@0.12": "0.12.0",
     "jsr:@deno-plc/adapter-osc@1": "1.0.0",
     "jsr:@deno-plc/slip@^1.2.1": "1.3.0",
     "jsr:@deno/cache-dir@0.13.2": "0.13.2",
     "jsr:@deno/emit@*": "0.46.0",
     "jsr:@deno/emit@0.46": "0.46.0",
     "jsr:@deno/graph@~0.73.1": "0.73.1",
+    "jsr:@denosaurs/plug@1": "1.0.6",
     "jsr:@oak/commons@1": "1.0.0",
+    "jsr:@std/assert@0.217": "0.217.0",
+    "jsr:@std/assert@0.221": "0.221.0",
     "jsr:@std/assert@0.223": "0.223.0",
     "jsr:@std/assert@1": "1.0.8",
     "jsr:@std/bytes@0.223": "0.223.0",
@@ -15,14 +19,19 @@
     "jsr:@std/bytes@^1.0.2": "1.0.4",
     "jsr:@std/crypto@1": "1.0.3",
     "jsr:@std/dotenv@*": "0.225.2",
+    "jsr:@std/encoding@0.221": "0.221.0",
     "jsr:@std/encoding@1": "1.0.5",
     "jsr:@std/encoding@^1.0.5": "1.0.5",
+    "jsr:@std/fmt@0.221": "0.221.0",
     "jsr:@std/fmt@0.223": "0.223.0",
+    "jsr:@std/fs@0.221": "0.221.0",
     "jsr:@std/fs@0.223": "0.223.0",
     "jsr:@std/http@1": "1.0.12",
     "jsr:@std/io@0.223": "0.223.0",
     "jsr:@std/io@0.224": "0.224.9",
     "jsr:@std/media-types@1": "1.1.0",
+    "jsr:@std/path@0.217": "0.217.0",
+    "jsr:@std/path@0.221": "0.221.0",
     "jsr:@std/path@0.223": "0.223.0",
     "jsr:@std/path@1": "1.0.8",
     "npm:@anthropic-ai/sdk@*": "0.32.1",
@@ -31,6 +40,13 @@
     "npm:path-to-regexp@6.2.1": "6.2.1"
   },
   "jsr": {
+    "@db/sqlite@0.12.0": {
+      "integrity": "dd1ef7f621ad50fc1e073a1c3609c4470bd51edc0994139c5bf9851de7a6d85f",
+      "dependencies": [
+        "jsr:@denosaurs/plug",
+        "jsr:@std/path@0.217"
+      ]
+    },
     "@deno-plc/adapter-osc@1.0.0": {
       "integrity": "1da27aef5c9b2e14a47f32e9929d04f419f4b853a3061f9aaa79a86f21c490c2",
       "dependencies": [
@@ -44,8 +60,8 @@
       "integrity": "c22419dfe27ab85f345bee487aaaadba498b005cce3644e9d2528db035c5454d",
       "dependencies": [
         "jsr:@deno/graph",
-        "jsr:@std/fmt",
-        "jsr:@std/fs",
+        "jsr:@std/fmt@0.223",
+        "jsr:@std/fs@0.223",
         "jsr:@std/io@0.223",
         "jsr:@std/path@0.223"
       ]
@@ -60,6 +76,15 @@
     "@deno/graph@0.73.1": {
       "integrity": "cd69639d2709d479037d5ce191a422eabe8d71bb68b0098344f6b07411c84d41"
     },
+    "@denosaurs/plug@1.0.6": {
+      "integrity": "6cf5b9daba7799837b9ffbe89f3450510f588fafef8115ddab1ff0be9cb7c1a7",
+      "dependencies": [
+        "jsr:@std/encoding@0.221",
+        "jsr:@std/fmt@0.221",
+        "jsr:@std/fs@0.221",
+        "jsr:@std/path@0.221"
+      ]
+    },
     "@oak/commons@1.0.0": {
       "integrity": "49805b55603c3627a9d6235c0655aa2b6222d3036b3a13ff0380c16368f607ac",
       "dependencies": [
@@ -70,6 +95,12 @@
         "jsr:@std/http",
         "jsr:@std/media-types"
       ]
+    },
+    "@std/assert@0.217.0": {
+      "integrity": "c98e279362ca6982d5285c3b89517b757c1e3477ee9f14eb2fdf80a45aaa9642"
+    },
+    "@std/assert@0.221.0": {
+      "integrity": "a5f1aa6e7909dbea271754fd4ab3f4e687aeff4873b4cef9a320af813adb489a"
     },
     "@std/assert@0.223.0": {
       "integrity": "eb8d6d879d76e1cc431205bd346ed4d88dc051c6366365b1af47034b0670be24"
@@ -89,11 +120,24 @@
     "@std/dotenv@0.225.2": {
       "integrity": "e2025dce4de6c7bca21dece8baddd4262b09d5187217e231b033e088e0c4dd23"
     },
+    "@std/encoding@0.221.0": {
+      "integrity": "d1dd76ef0dc5d14088411e6dc1dede53bf8308c95d1537df1214c97137208e45"
+    },
     "@std/encoding@1.0.5": {
       "integrity": "ecf363d4fc25bd85bd915ff6733a7e79b67e0e7806334af15f4645c569fefc04"
     },
+    "@std/fmt@0.221.0": {
+      "integrity": "379fed69bdd9731110f26b9085aeb740606b20428ce6af31ef6bd45ef8efa62a"
+    },
     "@std/fmt@0.223.0": {
       "integrity": "6deb37794127dfc7d7bded2586b9fc6f5d50e62a8134846608baf71ffc1a5208"
+    },
+    "@std/fs@0.221.0": {
+      "integrity": "028044450299de8ed5a716ade4e6d524399f035513b85913794f4e81f07da286",
+      "dependencies": [
+        "jsr:@std/assert@0.221",
+        "jsr:@std/path@0.221"
+      ]
     },
     "@std/fs@0.223.0": {
       "integrity": "3b4b0550b2c524cbaaa5a9170c90e96cbb7354e837ad1bdaf15fc9df1ae9c31c"
@@ -119,6 +163,18 @@
     },
     "@std/media-types@1.1.0": {
       "integrity": "c9d093f0c05c3512932b330e3cc1fe1d627b301db33a4c2c2185c02471d6eaa4"
+    },
+    "@std/path@0.217.0": {
+      "integrity": "1217cc25534bca9a2f672d7fe7c6f356e4027df400c0e85c0ef3e4343bc67d11",
+      "dependencies": [
+        "jsr:@std/assert@0.217"
+      ]
+    },
+    "@std/path@0.221.0": {
+      "integrity": "0a36f6b17314ef653a3a1649740cc8db51b25a133ecfe838f20b79a56ebe0095",
+      "dependencies": [
+        "jsr:@std/assert@0.221"
+      ]
     },
     "@std/path@0.223.0": {
       "integrity": "593963402d7e6597f5a6e620931661053572c982fc014000459edc1f93cc3989",
@@ -400,6 +456,15 @@
     "https://deno.land/x/oak@v17.1.3/utils/resolve_path.ts": "aa39d54a003b38fee55f340a0cba3f93a7af85b8ddd5fbfb049a98fc0109b36d",
     "https://deno.land/x/oak@v17.1.3/utils/streams.ts": "3da73b94681f8d27a82cc67df3f91090ec0bd6c3e9ab957af588d41ab585d923",
     "https://deno.land/x/oak@v17.1.3/utils/type_guards.ts": "a8dbb5ab7424f0355b121537d2454f927e0ca9949262fb67ac4fbefbd5880313",
+    "https://deno.land/x/sqlite@v3.8/build/sqlite.js": "72f63689fffcb9bb5ae10b1e8f7db09ea845cdf713e0e3a9693d8416a28f92a6",
+    "https://deno.land/x/sqlite@v3.8/build/vfs.js": "08533cc78fb29b9d9bd62f6bb93e5ef333407013fed185776808f11223ba0e70",
+    "https://deno.land/x/sqlite@v3.8/mod.ts": "e09fc79d8065fe222578114b109b1fd60077bff1bb75448532077f784f4d6a83",
+    "https://deno.land/x/sqlite@v3.8/src/constants.ts": "90f3be047ec0a89bcb5d6fc30db121685fc82cb00b1c476124ff47a4b0472aa9",
+    "https://deno.land/x/sqlite@v3.8/src/db.ts": "7d3251021756fa80f382c3952217c7446c5c8c1642b63511da0938fe33562663",
+    "https://deno.land/x/sqlite@v3.8/src/error.ts": "f7a15cb00d7c3797da1aefee3cf86d23e0ae92e73f0ba3165496c3816ab9503a",
+    "https://deno.land/x/sqlite@v3.8/src/function.ts": "e4c83b8ec64bf88bafad2407376b0c6a3b54e777593c70336fb40d43a79865f2",
+    "https://deno.land/x/sqlite@v3.8/src/query.ts": "d58abda928f6582d77bad685ecf551b1be8a15e8e38403e293ec38522e030cad",
+    "https://deno.land/x/sqlite@v3.8/src/wasm.ts": "e79d0baa6e42423257fb3c7cc98091c54399254867e0f34a09b5bdef37bd9487",
     "https://deno.land/x/websocket@v0.1.4/deps.ts": "1299887e27e09209d2eedc5c3b6552090842fac9e08f00dd235de39219efbd42",
     "https://deno.land/x/websocket@v0.1.4/lib/errors.ts": "efb2251dac1ac2036809b0bfb520d737aee70e362eba1e287c84d5299fb211e8",
     "https://deno.land/x/websocket@v0.1.4/lib/websocket.ts": "3363e0a8f59284de5439f5f3bd8831b65a2cfba047113fbc72e32934ebec3208",
@@ -407,6 +472,7 @@
   },
   "workspace": {
     "dependencies": [
+      "jsr:@db/sqlite@0.12",
       "jsr:@deno-plc/adapter-osc@1",
       "jsr:@deno/emit@0.46"
     ]

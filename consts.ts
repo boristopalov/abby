@@ -1,6 +1,8 @@
 import Anthropic from "npm:@anthropic-ai/sdk";
 
 export const ABLETON_HISTORY_WINDOW = 10 * 60 * 1000 * 3; // 30m
+export const LOCAL_OSC_PORT = 11001;
+export const WEBSOCKET_PORT = 8000;
 
 export const analysisMessage = (
   changesSummary: string

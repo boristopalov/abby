@@ -4,16 +4,12 @@ import Anthropic from "npm:@anthropic-ai/sdk";
 import { Application } from "https://deno.land/x/oak/mod.ts";
 import { generateResponse } from "./agent.ts";
 import { OSCHandler } from "./ableton.ts";
-import { analysisMessage } from "./consts.ts";
-import { systemGenre, GENRE_SYSTEM_PROMPTS } from "./prompts.ts";
+import { analysisMessage, LOCAL_OSC_PORT, WEBSOCKET_PORT } from "./consts.ts";
 import { CustomWebSocket, WebSocketMessage } from "./types.d.ts";
 import router from "./routes.ts";
-const localOscPort = 11001;
-const webSocketServerPort = 8000;
-
-export const anthropic = new Anthropic({
-  apiKey: Deno.env.get("ANTHROPIC_API_KEY"),
-});
+import { dbService } from "./db.ts";
+import { context } from "./context.ts";
+import { generateRandomSlug } from "./slugs.ts";
 
 const tools: Anthropic.Tool[] = [
   {
@@ -51,8 +47,6 @@ const tools: Anthropic.Tool[] = [
   },
 ];
 
-const messages: Anthropic.MessageParam[] = [];
-
 // Create the extension function
 const extendWebSocket = (ws: WebSocket): CustomWebSocket => {
   const extended = ws as CustomWebSocket;
@@ -65,7 +59,10 @@ const extendWebSocket = (ws: WebSocket): CustomWebSocket => {
 let ws: CustomWebSocket | undefined;
 
 // UDP listener on port 110001
-const udpSocket = Deno.listenDatagram({ port: localOscPort, transport: "udp" });
+const udpSocket = Deno.listenDatagram({
+  port: LOCAL_OSC_PORT,
+  transport: "udp",
+});
 export const oscHandler = new OSCHandler(udpSocket);
 
 const isLive = await oscHandler.isLive();
@@ -79,56 +76,8 @@ async function getRecentParameterChanges() {
   const changesSummary = oscHandler.getRecentParameterChanges();
   console.log("changes summary:", changesSummary);
 
-  // if (changesSummary.length === 0) {
-  //   ws?.sendMessage({
-  //     type: "error",
-  //     content: "No recent changes to any devices",
-  //   });
-  //   return; // Skip if no changes
-  // }
-
-  // messages.push(analysisMessage(JSON.stringify(changesSummary)));
   await processMessage(analysisMessage(JSON.stringify(changesSummary)));
   return;
-
-  try {
-    const stream = anthropic.messages.stream({
-      messages,
-      model: "claude-3-5-sonnet-20241022",
-      max_tokens: 2048,
-    });
-
-    let currentSuggestions = "";
-
-    stream.on("text", (textDelta) => {
-      console.log("[Text Chunk]", textDelta);
-      currentSuggestions += textDelta;
-      ws?.sendMessage({ type: "text", content: textDelta });
-    });
-
-    stream.on("end", () => {
-      console.log("|END_MESSAGE|");
-      ws?.sendMessage({ type: "end_message", content: "<|END_MESSAGE|>" });
-    });
-
-    const finalMessage = await stream.finalMessage();
-    messages.push({ role: finalMessage.role, content: finalMessage.content });
-
-    // does this work lol
-    if (currentSuggestions.includes("[SUGGESTION]")) {
-      // Send confirmation request to client
-      ws?.sendMessage({
-        type: "confirmation",
-        content: "Would you like me to apply these changes? (yes/no)",
-      });
-    }
-  } catch (error) {
-    ws?.sendMessage({
-      type: "error",
-      content: `Error analyzing parameter changes: ${error}`,
-    });
-    console.error("Error analyzing parameter changes:", error);
-  }
 }
 
 // Handle incoming messages from WebSocket
@@ -156,23 +105,29 @@ async function handleWebSocketMessage(event: MessageEvent) {
   await processMessage(userMessage);
 }
 
-const headers = new Headers({
-  "Access-Control-Allow-Origin": "*",
-});
-
+// Update processMessage to use the Map
 async function processMessage(message: Anthropic.MessageParam) {
-  messages.push(message);
+  const session = dbService.getSession(context.currentSessionId!);
+  if (!session) {
+    throw new Error("No active session");
+  }
+
+  context.addMessage(message);
+  if (message.role === "user") {
+    dbService.addMessage(context.currentSessionId!, {
+      text: message.content as string,
+      isUser: true,
+      type: "text",
+    });
+  }
 
   let continueLoop = true;
   while (continueLoop) {
     try {
-      const stream = anthropic.messages.stream({
-        messages,
+      const stream = context.anthropic.messages.stream({
+        messages: context.messages,
         model: "claude-3-5-sonnet-20241022",
-        system:
-          GENRE_SYSTEM_PROMPTS[
-            systemGenre as keyof typeof GENRE_SYSTEM_PROMPTS
-          ],
+        system: context.currentGenre.systemPrompt,
         max_tokens: 2048,
         tools,
       });
@@ -189,7 +144,9 @@ async function processMessage(message: Anthropic.MessageParam) {
       const finalMessagePromise = new Promise<void>((resolve) => {
         stream.on("finalMessage", async (msg) => {
           console.log("[Final Message]", msg);
-          messages.push({ role: msg.role, content: msg.content });
+
+          // Add assistant message to both stores
+          context.addMessage({ role: msg.role, content: msg.content });
 
           let hasToolUse = false;
           ws?.sendMessage({ type: "end_message", content: "<|END_MESSAGE|>" });
@@ -197,16 +154,38 @@ async function processMessage(message: Anthropic.MessageParam) {
           for (const contentBlock of msg.content) {
             if (contentBlock.type === "tool_use") {
               hasToolUse = true;
+
+              dbService.addMessage(context.currentSessionId!, {
+                text: contentBlock.name,
+                type: "tool",
+                isUser: false,
+              });
+
               ws?.sendMessage({
                 type: "tool",
                 content: contentBlock.name,
               });
+
               const response = await generateResponse(oscHandler, contentBlock);
               if (response.is_error) {
                 throw new Error("tool usage failed!");
               }
+
               console.log("tool use result:", response);
+
+              // don't think we need/want to store this
+              // dbService.addMessage(context.currentSessionId!, {
+              //   text: response.content,
+              //   type: "text",
+              //   isUser: false,
+              // });
               toolResults.push(response as Anthropic.ToolResultBlockParam);
+            } else {
+              dbService.addMessage(context.currentSessionId!, {
+                text: contentBlock.text,
+                type: "text",
+                isUser: false,
+              });
             }
           }
 
@@ -215,7 +194,7 @@ async function processMessage(message: Anthropic.MessageParam) {
             continueLoop = false;
           } else {
             // feed tool results back to the model
-            messages.push({ role: "user", content: toolResults });
+            context.addMessage({ role: "user", content: toolResults });
           }
           resolve();
         });
@@ -225,22 +204,28 @@ async function processMessage(message: Anthropic.MessageParam) {
     } catch (error) {
       console.error("Error processing message:", error);
       if (error instanceof Error) {
-        ws?.sendMessage({ type: "error", content: `Error: ${error.message}` });
+        const errMsg = `Error: ${error.message}`;
+        dbService.addMessage(context.currentSessionId!, {
+          text: errMsg,
+          type: "error",
+          isUser: false,
+        });
+        ws?.sendMessage({ type: "error", content: errMsg });
       }
       continueLoop = false;
     }
   }
 }
 
-let currentSessionId: string | null = null;
-let handlersInitialized = false;
-let handlersLoading = false;
+const headers = new Headers({
+  "Access-Control-Allow-Origin": "*",
+});
 
 // Websocket stuff
 // client should send websocket messages to port 8000
 Deno.serve(
   {
-    port: webSocketServerPort,
+    port: WEBSOCKET_PORT,
     hostname: "0.0.0.0",
   },
   // block all requests other than incoming websocket connections
@@ -257,9 +242,13 @@ Deno.serve(
     }
 
     // Clear message history if this is a new session
-    if (sessionId !== currentSessionId) {
-      messages.length = 0; // Clear the messages array
-      currentSessionId = sessionId;
+    if (sessionId !== context.currentSessionId) {
+      context.clearMessages();
+      context.currentSessionId = sessionId;
+      const s = dbService.getSession(sessionId);
+      if (!s) {
+        dbService.createSession(generateRandomSlug(), sessionId);
+      }
     }
 
     const { socket: _socket, response } = Deno.upgradeWebSocket(req);
@@ -268,13 +257,13 @@ Deno.serve(
     ws.addEventListener("open", async () => {
       ws?.addEventListener("message", handleWebSocketMessage);
       oscHandler.setWsClient(ws!);
-      if (!handlersInitialized && !handlersLoading) {
-        handlersLoading = true;
+      if (!context.handlersInitialized && !context.handlersLoading) {
+        context.handlersLoading = true;
         await oscHandler.subscribeToDeviceParameters();
-        handlersInitialized = true;
-        handlersLoading = false;
+        context.handlersInitialized = true;
+        context.handlersLoading = false;
         console.log("Finished setting up handlers for new session!");
-      } else if (handlersInitialized) {
+      } else if (context.handlersInitialized) {
         ws?.sendMessage({ type: "loading_progress", content: 100 });
         console.log("Reusing existing parameter subscriptions");
       }

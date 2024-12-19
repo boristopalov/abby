@@ -1,20 +1,16 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import {
-    messageStorage,
-    activeSession,
-    parameterChanges,
-    type ParameterChange,
-    paramStorage,
-  } from "./lib/messageStorage";
-  import "./app.css";
+  import { sessionStorage, activeSessionId } from "./lib/stores";
   import {
     fetchGenres,
     getRecentParameterChanges,
     setGenre,
     generateRandomGenre,
+    getSessionMessages,
   } from "./lib/apiCalls";
   import { slide } from "svelte/transition";
+  import { writable } from "svelte/store";
+  import type { ChatMessage, ParameterChange } from "./types";
 
   interface WebSocketMessage {
     type:
@@ -42,14 +38,17 @@
   let chatContainer = $state<HTMLElement | undefined>(undefined);
   let isModelThinking = $state(false);
 
+  const parameterChanges = writable<ParameterChange[]>([]);
+  const messages = writable<ChatMessage[]>([]);
   onMount(async () => {
-    connectWebSocket();
+    void connectWebSocket();
 
     // Poll every minute
     const intervalId = setInterval(async () => {
       const changes = await getRecentParameterChanges();
-      console.log("CHANGES:", changes);
-      paramStorage.setChanges(changes);
+      if (changes) {
+        parameterChanges.set(changes);
+      }
     }, 60000);
 
     const genreResponse = await fetchGenres();
@@ -64,21 +63,23 @@
     });
   });
 
-  function connectWebSocket() {
-    ws = new WebSocket(`ws://localhost:8000?sessionId=${$activeSession.id}`);
+  async function connectWebSocket() {
+    ws = new WebSocket(`ws://localhost:8000?sessionId=${$activeSessionId}`);
 
-    ws.onopen = () => {
+    ws.onopen = async () => {
+      const msgs = await getSessionMessages($activeSessionId);
+      messages.set(msgs);
       isConnected = true;
       console.log(
         "Connected to WebSocket server with session:",
-        $activeSession.id
+        $activeSessionId
       );
     };
 
     ws.onclose = () => {
       isConnected = false;
       console.log("Disconnected from WebSocket server");
-      setTimeout(connectWebSocket, 100);
+      setTimeout(connectWebSocket, 1000);
     };
 
     ws.onmessage = (event) => {
@@ -92,11 +93,14 @@
     if (!inputMessage.trim() || !ws) return;
 
     isModelThinking = true;
-    messageStorage.addMessage({
-      text: inputMessage,
-      isUser: true,
-      type: "text",
-    });
+    messages.update((msgs) => [
+      ...msgs,
+      {
+        text: inputMessage,
+        isUser: true,
+        type: "text",
+      },
+    ]);
 
     ws.send(
       JSON.stringify({
@@ -139,7 +143,7 @@
   }
 
   function startNewSession() {
-    messageStorage.deleteActiveSession();
+    sessionStorage.createSession();
     if (ws) {
       ws.close(4000, "reset"); // This will trigger reconnection with new sessionId
     }
@@ -165,11 +169,14 @@
     switch (data.type) {
       case "end_message":
         if (currentMessage) {
-          messageStorage.addMessage({
-            text: formatMessage(currentMessage),
-            isUser: false,
-            type: "text",
-          });
+          messages.update((msgs) => [
+            ...msgs,
+            {
+              text: formatMessage(currentMessage),
+              isUser: false,
+              type: "text",
+            },
+          ]);
           currentMessage = "";
           setTimeout(() => {
             chatContainer?.scrollTo({
@@ -189,25 +196,34 @@
         break;
 
       case "parameter_change":
-        paramStorage.addParamChange(data.content as ParameterChange);
+        parameterChanges.update((changes) => [
+          ...changes,
+          data.content as ParameterChange,
+        ]);
         showParameterPanel = true;
         break;
 
       case "tool":
         isModelThinking = true;
-        messageStorage.addMessage({
-          text: formatMessage(data.content as string),
-          isUser: false,
-          type: "tool",
-        });
+        messages.update((msgs) => [
+          ...msgs,
+          {
+            text: formatMessage(data.content as string),
+            isUser: false,
+            type: "tool",
+          },
+        ]);
         break;
 
       case "error":
-        messageStorage.addMessage({
-          text: formatMessage(data.content as string),
-          isUser: false,
-          type: "error",
-        });
+        messages.update((msgs) => [
+          ...msgs,
+          {
+            text: formatMessage(data.content as string),
+            isUser: false,
+            type: "error",
+          },
+        ]);
         break;
 
       case "confirmation":
@@ -318,7 +334,7 @@
             bind:this={chatContainer}
             class="flex-1 overflow-y-auto space-y-4 mb-4"
           >
-            {#each $activeSession.messages as message}
+            {#each $messages as message}
               <div
                 class={`flex ${message.isUser ? "justify-end" : "justify-start"}`}
               >

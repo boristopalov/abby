@@ -1,4 +1,4 @@
-const TRIBAL_SCIFI_TECHNO = "Tribal/Sci-fi Techno";
+export const TRIBAL_SCIFI_TECHNO = "Tribal/Sci-fi Techno";
 const VAPORWAVE_FUTURE_FUNK = "Vaporwave/Future Funk";
 const DUNGEON_SYNTH = "Dungeon Synth";
 const MICRO_SOUND = "Micro-Sound";
