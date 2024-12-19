@@ -12,8 +12,10 @@
     fetchGenres,
     getRecentParameterChanges,
     setGenre,
+    generateRandomGenre,
   } from "./lib/apiCalls";
   import { slide } from "svelte/transition";
+
   interface WebSocketMessage {
     type:
       | "text"
@@ -26,28 +28,40 @@
     content: string | number | ParameterChange;
   }
 
-  let inputMessage = "";
+  let inputMessage = $state("");
   let ws: WebSocket;
-  let currentMessage = "";
-  let isConnected = false;
-  let availableGenres: string[] = [];
-  let activeGenre: string | null = null;
-  let loadingProgress: number = 0;
-  let isLoading: boolean = true;
+  let currentMessage = $state("");
+  let isConnected = $state(false);
+  let availableGenres: string[] = $state([]);
+  let activeGenre: string | null = $state(null);
+  let loadingProgress: number = $state(0);
+  let isLoading: boolean = $derived(loadingProgress !== 100);
 
-  let showParameterPanel = true;
+  let showParameterPanel = $state(true);
+
+  let chatContainer = $state<HTMLElement | undefined>(undefined);
+  let isModelThinking = $state(false);
 
   onMount(async () => {
     connectWebSocket();
+
+    // Poll every minute
+    const intervalId = setInterval(async () => {
+      const changes = await getRecentParameterChanges();
+      console.log("CHANGES:", changes);
+      paramStorage.setChanges(changes);
+    }, 60000);
+
     const genreResponse = await fetchGenres();
     availableGenres = genreResponse.genres;
     activeGenre = genreResponse.defaultGenre;
-  });
 
-  onDestroy(() => {
-    if (ws) {
-      ws.close();
-    }
+    onDestroy(() => {
+      clearInterval(intervalId);
+      if (ws) {
+        ws.close();
+      }
+    });
   });
 
   function connectWebSocket() {
@@ -69,6 +83,7 @@
 
     ws.onmessage = (event) => {
       const data: WebSocketMessage = JSON.parse(event.data);
+      console.log("DATA:", data);
       handleWebSocketMessage(data);
     };
   }
@@ -76,6 +91,7 @@
   function sendMessage() {
     if (!inputMessage.trim() || !ws) return;
 
+    isModelThinking = true;
     messageStorage.addMessage({
       text: inputMessage,
       isUser: true,
@@ -88,6 +104,13 @@
       })
     );
     inputMessage = "";
+
+    setTimeout(() => {
+      chatContainer?.scrollTo({
+        top: chatContainer.scrollHeight,
+        behavior: "smooth",
+      });
+    }, 50);
   }
 
   function handleKeyPress(event: KeyboardEvent) {
@@ -99,20 +122,21 @@
 
   function requestParameterChanges() {
     if (ws) {
+      isModelThinking = true;
       ws.send(
         JSON.stringify({
           message: "get-param-changes",
         })
       );
+
+      setTimeout(() => {
+        chatContainer?.scrollTo({
+          top: chatContainer.scrollHeight,
+          behavior: "smooth",
+        });
+      }, 50);
     }
   }
-
-  // Poll every minute
-  setInterval(async () => {
-    const changes = await getRecentParameterChanges();
-    console.log("recent changes:", changes);
-    paramStorage.setChanges(changes);
-  }, 60000);
 
   function startNewSession() {
     messageStorage.deleteActiveSession();
@@ -136,6 +160,8 @@
   }
 
   function handleWebSocketMessage(data: WebSocketMessage) {
+    isModelThinking = false;
+    console.log(isModelThinking);
     switch (data.type) {
       case "end_message":
         if (currentMessage) {
@@ -145,6 +171,12 @@
             type: "text",
           });
           currentMessage = "";
+          setTimeout(() => {
+            chatContainer?.scrollTo({
+              top: chatContainer.scrollHeight,
+              behavior: "smooth",
+            });
+          }, 50);
         }
         break;
 
@@ -154,18 +186,15 @@
 
       case "loading_progress":
         loadingProgress = data.content as number;
-        if (loadingProgress === 100) {
-          isLoading = false;
-        }
         break;
 
       case "parameter_change":
-        console.log("PARAMETER CHANGE:", data.content);
         paramStorage.addParamChange(data.content as ParameterChange);
         showParameterPanel = true;
         break;
 
       case "tool":
+        isModelThinking = true;
         messageStorage.addMessage({
           text: formatMessage(data.content as string),
           isUser: false,
@@ -189,19 +218,19 @@
 </script>
 
 <main class="h-screen flex flex-col bg-gray-900 text-gray-100">
-  <div class="border-b border-gray-800 p-4 flex justify-between items-center">
+  <div class="border-b border-gray-800 p-3 flex justify-between items-center">
     <h1 class="text-xl font-semibold">Abby</h1>
     <div class="flex items-center gap-4">
       <button
-        on:click={startNewSession}
+        onclick={startNewSession}
         hidden={!isConnected}
-        disabled={isLoading}
+        disabled={isLoading || !isConnected}
         class="px-3 py-1 rounded-full text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
       >
         Start New Chat
       </button>
       <div
-        class={`px-3 py-1 rounded-full text-sm ${
+        class={`px-3 py-1 rounded-full text-sm disabled:cursor-not-allowed ${
           isConnected
             ? "bg-green-500/10 text-green-400"
             : "bg-red-500/10 text-red-400"
@@ -237,29 +266,58 @@
     <div class="flex flex-1 min-h-0 relative">
       <div class="flex-1 flex flex-col">
         <div
-          class="border-b border-gray-800 p-4 flex flex-wrap gap-2 w-full justify-center"
+          class="border-b border-gray-800 p-3 flex gap-4 w-full items-center"
         >
-          {#each availableGenres as genre}
+          <div class="flex flex-wrap gap-2 flex-1 justify-center">
+            {#each availableGenres as genre}
+              <button
+                onclick={() => {
+                  setGenre(genre);
+                  activeGenre = genre;
+                }}
+                class={`px-3 py-1 rounded-full text-xs disabled:cursor-not-allowed transition-colors cursor-pointer ${
+                  activeGenre === genre
+                    ? "bg-purple-700/80 text-purple-200"
+                    : "bg-purple-500/20 text-purple-300 hover:bg-purple-500/30"
+                }`}
+                disabled={!isConnected}
+              >
+                {genre}
+              </button>
+            {/each}
+          </div>
+
+          <div class="border-l border-gray-800 pl-4">
             <button
-              on:click={() => {
-                setGenre(genre);
-                activeGenre = genre;
+              onclick={async () => {
+                try {
+                  const newGenre = await generateRandomGenre();
+                  setGenre(newGenre);
+                  activeGenre = newGenre;
+                  availableGenres = [...availableGenres, newGenre];
+                } catch (error) {
+                  console.error("Error generating random genre:", error);
+                }
               }}
-              class={`px-3 py-1 rounded-full text-xs transition-colors cursor-pointer ${
-                activeGenre === genre
-                  ? "bg-purple-700/80 text-purple-200"
-                  : "bg-purple-500/20 text-purple-300 hover:bg-purple-500/30"
-              }`}
+              class="px-2 py-1.5 rounded-sm text-xs font-medium disabled:cursor-not-allowed transition-all duration-300 cursor-pointer bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 hover:from-indigo-500/30 hover:via-purple-500/30 hover:to-pink-500/30 text-white border border-white/10 hover:border-white/20 hover:shadow-lg hover:shadow-purple-500/10 hover:-translate-y-0.5 active:translate-y-0"
+              disabled={!isConnected}
             >
-              {genre}
+              <span
+                class="bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200 bg-clip-text"
+              >
+                🎲 🎲
+              </span>
             </button>
-          {/each}
+          </div>
         </div>
 
         <div
           class="flex-1 flex flex-col min-h-0 max-w-4xl mx-auto w-full p-4 text-sm"
         >
-          <div class="flex-1 overflow-y-auto space-y-4 mb-4">
+          <div
+            bind:this={chatContainer}
+            class="flex-1 overflow-y-auto space-y-4 mb-4"
+          >
             {#each $activeSession.messages as message}
               <div
                 class={`flex ${message.isUser ? "justify-end" : "justify-start"}`}
@@ -323,11 +381,33 @@
                 </div>
               </div>
             {/if}
+            {#if isModelThinking}
+              <div class="flex justify-start">
+                <div
+                  class="max-w-[80%] rounded-lg p-3 bg-gray-800 text-gray-100"
+                >
+                  <div class="flex items-center gap-2">
+                    <div
+                      class="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                      style="animation-delay: 0ms"
+                    ></div>
+                    <div
+                      class="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                      style="animation-delay: 150ms"
+                    ></div>
+                    <div
+                      class="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                      style="animation-delay: 300ms"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            {/if}
           </div>
 
           <div class="border-t border-gray-800 pt-4">
             <button
-              on:click={requestParameterChanges}
+              onclick={requestParameterChanges}
               disabled={!isConnected}
               class="w-full mb-4 bg-gradient-to-r from-purple-600/20 via-blue-600/20 to-purple-600/20 hover:from-purple-600/30 hover:via-blue-600/30 hover:to-purple-600/30 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg p-3 flex items-center justify-center gap-2 transition-all duration-300 group relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/5 before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out active:scale-[0.98] disabled:before:hidden"
             >
@@ -339,7 +419,7 @@
             <div class="relative gap-2">
               <textarea
                 bind:value={inputMessage}
-                on:keypress={handleKeyPress}
+                onkeypress={handleKeyPress}
                 placeholder="Type a message..."
                 rows="3"
                 disabled={!isConnected}
@@ -347,7 +427,7 @@
               ></textarea>
               <button
                 aria-label="Send message"
-                on:click={sendMessage}
+                onclick={sendMessage}
                 disabled={!isConnected || !inputMessage.trim()}
                 class="absolute bottom-3 right-3 bg-blue-500/30 hover:bg-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-lg flex items-center justify-center transition-colors"
               >
@@ -375,7 +455,7 @@
           out:slide={{ axis: "x" }}
         >
           <div
-            class="p-4 border-b border-gray-800 flex justify-between items-center"
+            class="p-3 border-b border-gray-800 flex justify-between items-center"
           >
             <h2 class="font-semibold">Parameter Changes</h2>
           </div>
@@ -407,7 +487,7 @@
       {/if}
 
       <button
-        on:click={() => (showParameterPanel = !showParameterPanel)}
+        onclick={() => (showParameterPanel = !showParameterPanel)}
         class="fixed right-0 top-1/2 -translate-y-1/2 bg-gray-800 p-2 rounded-l-lg text-gray-400 hover:text-gray-200 hover:bg-gray-700"
         aria-label={showParameterPanel
           ? "hide parameter changes"
@@ -433,7 +513,6 @@
 </main>
 
 <style>
-  /* Remove existing styles as we're using Tailwind */
   :global(body) {
     margin: 0;
   }

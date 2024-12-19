@@ -4,7 +4,8 @@ import {
   setSystemGenre,
   systemGenre,
 } from "./prompts.ts";
-import { oscHandler } from "./connect.ts";
+import { oscHandler, anthropic } from "./connect.ts";
+import { generateRandomGenre } from "./genre_generator.ts";
 
 const router = new Router();
 
@@ -38,6 +39,16 @@ router.post("/api/genre", async (ctx) => {
 router.get("/api/parameter-changes", (ctx) => {
   const changes = oscHandler.getRecentParameterChanges();
   ctx.response.body = { changes };
+});
+
+router.get("/api/random-genre", async (ctx) => {
+  try {
+    const randomGenre = await generateRandomGenre(anthropic);
+    ctx.response.body = { genre: randomGenre };
+  } catch (error) {
+    ctx.response.status = 500;
+    ctx.response.body = { error: `Failed to generate random genre: ${error}` };
+  }
 });
 
 export default router;

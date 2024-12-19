@@ -39,3 +39,12 @@ export async function getRecentParameterChanges(): Promise<ParameterChange[]> {
   const data = await response.json();
   return data.changes;
 }
+
+export async function generateRandomGenre(): Promise<string> {
+  const response = await fetch(`${base_uri}/api/random-genre`);
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to generate random genre");
+  }
+  return data.genre;
+}

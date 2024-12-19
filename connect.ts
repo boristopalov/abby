@@ -11,8 +11,8 @@ import router from "./routes.ts";
 const localOscPort = 11001;
 const webSocketServerPort = 8000;
 
-const anthropic = new Anthropic({
-  apiKey: Deno.env.get("ANTHROPIC_API_KEY"), // Make sure to set this environment variable
+export const anthropic = new Anthropic({
+  apiKey: Deno.env.get("ANTHROPIC_API_KEY"),
 });
 
 const tools: Anthropic.Tool[] = [
@@ -74,19 +74,22 @@ if (!isLive) {
   Deno.exit(0);
 }
 
+// TODO: fix this logic this shit is a bad idea
 async function getRecentParameterChanges() {
   const changesSummary = oscHandler.getRecentParameterChanges();
   console.log("changes summary:", changesSummary);
 
-  if (changesSummary.length === 0) {
-    ws?.sendMessage({
-      type: "error",
-      content: "No recent changes to any devices",
-    });
-    return; // Skip if no changes
-  }
+  // if (changesSummary.length === 0) {
+  //   ws?.sendMessage({
+  //     type: "error",
+  //     content: "No recent changes to any devices",
+  //   });
+  //   return; // Skip if no changes
+  // }
 
-  messages.push(analysisMessage(JSON.stringify(changesSummary)));
+  // messages.push(analysisMessage(JSON.stringify(changesSummary)));
+  await processMessage(analysisMessage(JSON.stringify(changesSummary)));
+  return;
 
   try {
     const stream = anthropic.messages.stream({
@@ -130,13 +133,14 @@ async function getRecentParameterChanges() {
 
 // Handle incoming messages from WebSocket
 async function handleWebSocketMessage(event: MessageEvent) {
-  console.log("EVENT: ", event.data);
-  if (JSON.parse(event.data).message === "get-param-changes") {
+  const data = JSON.parse(event.data);
+  const msg = data.message;
+  if (msg === "get-param-changes") {
     await getRecentParameterChanges();
     return;
   }
-  if (event.data?.type === "suggestion_response") {
-    if (event.data.response === "yes") {
+  if (data.type === "suggestion_response") {
+    if (data.response === "yes") {
       const executeMessage: Anthropic.MessageParam = {
         role: "user",
         content: `Yes, please make the suggestions you outlined.`,
@@ -147,7 +151,7 @@ async function handleWebSocketMessage(event: MessageEvent) {
   }
   const userMessage: Anthropic.MessageParam = {
     role: "user",
-    content: event.data,
+    content: msg,
   };
   await processMessage(userMessage);
 }
@@ -180,7 +184,6 @@ async function processMessage(message: Anthropic.MessageParam) {
 
       stream.on("end", () => {
         console.log("|END_MESSAGE|");
-        ws?.sendMessage({ type: "end_message", content: "<|END_MESSAGE|>" });
       });
 
       const finalMessagePromise = new Promise<void>((resolve) => {
@@ -189,6 +192,7 @@ async function processMessage(message: Anthropic.MessageParam) {
           messages.push({ role: msg.role, content: msg.content });
 
           let hasToolUse = false;
+          ws?.sendMessage({ type: "end_message", content: "<|END_MESSAGE|>" });
           const toolResults: Anthropic.ToolResultBlockParam[] = [];
           for (const contentBlock of msg.content) {
             if (contentBlock.type === "tool_use") {

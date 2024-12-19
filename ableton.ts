@@ -117,14 +117,17 @@ export class OSCHandler {
       this.send(address, args);
     });
   }
-
-  public getTracksDevices = async () => {
+  public getTracksDevices = async (sendProgress = false) => {
     const summary = [];
 
     // Step 1: Get track count (10% progress)
-    this.client?.sendMessage({ type: "loading_progress", content: 0 });
+    if (sendProgress) {
+      this.client?.sendMessage({ type: "loading_progress", content: 0 });
+    }
     const num_tracks = (await this.sendOSC("/live/song/get/num_tracks"))[0];
-    this.client?.sendMessage({ type: "loading_progress", content: 10 });
+    if (sendProgress) {
+      this.client?.sendMessage({ type: "loading_progress", content: 10 });
+    }
 
     // Step 2: Get track data (20% progress)
     const track_data = await this.sendOSC("/live/song/get/track_data", [
@@ -132,18 +135,22 @@ export class OSCHandler {
       num_tracks,
       "track.name",
     ]);
-    this.client?.sendMessage({ type: "loading_progress", content: 20 });
+    if (sendProgress) {
+      this.client?.sendMessage({ type: "loading_progress", content: 20 });
+    }
 
     // Step 3: Process each track (remaining 80% distributed across tracks)
     for (const [track_index, track_name] of track_data.entries()) {
       // Calculate progress per track
-      const progressPerTrack = 30 / track_data.length;
-      const currentProgress = 20 + progressPerTrack * track_index;
+      if (sendProgress) {
+        const progressPerTrack = 30 / track_data.length;
+        const currentProgress = 20 + progressPerTrack * track_index;
 
-      this.client?.sendMessage({
-        type: "loading_progress",
-        content: Math.round(currentProgress),
-      });
+        this.client?.sendMessage({
+          type: "loading_progress",
+          content: Math.round(currentProgress),
+        });
+      }
 
       const track_num_devices = (
         await this.sendOSC("/live/track/get/num_devices", [track_index])
@@ -178,7 +185,9 @@ export class OSCHandler {
     }
 
     // Final progress update
-    this.client?.sendMessage({ type: "loading_progress", content: 50 });
+    if (sendProgress) {
+      this.client?.sendMessage({ type: "loading_progress", content: 50 });
+    }
 
     return summary;
   };
@@ -194,7 +203,7 @@ export class OSCHandler {
       content: 0,
     });
 
-    const tracks = await this.getTracksDevices();
+    const tracks = await this.getTracksDevices(true);
 
     // Calculate total steps for progress tracking
     let totalDevices = 0;

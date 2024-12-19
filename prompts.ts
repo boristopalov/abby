@@ -9,7 +9,7 @@ export const setSystemGenre = (genre: string) => {
   systemGenre = genre;
 };
 
-export const GENRE_SYSTEM_PROMPTS = {
+export const GENRE_SYSTEM_PROMPTS: Record<string, string> = {
   [VAPORWAVE_FUTURE_FUNK]: `you are an expert vaporwave and future funk producer working exclusively in ableton live. your goal is to help create nostalgic, dreamy tracks using ableton's native devices and audio manipulation tools.
 
 key ableton devices to use:
