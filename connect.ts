@@ -172,13 +172,6 @@ async function processMessage(message: Anthropic.MessageParam) {
               }
 
               console.log("tool use result:", response);
-
-              // don't think we need/want to store this
-              // dbService.addMessage(context.currentSessionId!, {
-              //   text: response.content,
-              //   type: "text",
-              //   isUser: false,
-              // });
               toolResults.push(response as Anthropic.ToolResultBlockParam);
             } else {
               dbService.addMessage(context.currentSessionId!, {

@@ -422,7 +422,7 @@
           </div>
 
           <div class="border-t border-gray-800 pt-4">
-            <button
+            <!-- <button
               onclick={requestParameterChanges}
               disabled={!isConnected}
               class="w-full mb-4 bg-gradient-to-r from-purple-600/20 via-blue-600/20 to-purple-600/20 hover:from-purple-600/30 hover:via-blue-600/30 hover:to-purple-600/30 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg p-3 flex items-center justify-center gap-2 transition-all duration-300 group relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/5 before:to-transparent before:-translate-x-full hover:before:translate-x-full before:transition-transform before:duration-700 before:ease-in-out active:scale-[0.98] disabled:before:hidden"
@@ -430,7 +430,7 @@
               <span class="font-semibold"
                 >✨ 🤗 Suggest Parameter Changes 🤗 ✨</span
               >
-            </button>
+            </button> -->
 
             <div class="relative gap-2">
               <textarea
