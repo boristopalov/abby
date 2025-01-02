@@ -4,4 +4,10 @@ frontend/dist/
 **/.venv
 audio_parser/audio
 .DS_Store
-**/__pycache__
+**/__pycache__.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.db
