@@ -1,3 +1,7 @@
 node_modules
 frontend/dist/
 .env
+**/.venv
+audio_parser/audio
+.DS_Store
+**/__pycache__

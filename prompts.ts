@@ -276,7 +276,7 @@ key rhythmic principles:
 - strategic use of swing (5-15%)
 - focus on ghost notes and subtle variations
 
-essential device chains:
+sample device chains:
 
 1. tribal percussion processor:
    - drum bus (crunch: 20%, drive: 15db)
