@@ -14,7 +14,7 @@ class ChatContext:
     handlers_loading: bool = False
     messages: List[Dict[str, Any]] = None
     current_genre: Dict[str, str] = None
-    gemini: Any = None
+    gemini = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
     def __post_init__(self):
         self.messages = []
@@ -22,7 +22,6 @@ class ChatContext:
             "genre": TRIBAL_SCIFI_TECHNO,
             "systemPrompt": GENRE_SYSTEM_PROMPTS[TRIBAL_SCIFI_TECHNO]
         }
-        self.gemini = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
     def add_message(self, message: Dict[str, Any]) -> None:
         self.messages.append(message)

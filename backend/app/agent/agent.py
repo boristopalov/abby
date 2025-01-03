@@ -1,9 +1,8 @@
-from typing import Dict, Any, List, Optional, AsyncGenerator
+from typing import Dict, Any, List, AsyncGenerator
 from pydantic import BaseModel
 import json
-from ..core.context import get_context
+from ..core.context import ChatContext
 from ..services.db_service import DBService
-from contextlib import asynccontextmanager
 
 # Tool schemas
 class GetDeviceParamsInput(BaseModel):
@@ -104,8 +103,8 @@ async def generate_response(osc_handler: Any, tool_call: Dict[str, Any]) -> Dict
 async def stream_llm_response(context: ChatContext, messages: List[Dict[str, Any]]) -> AsyncGenerator[Dict[str, Any], None]:
     """Stream LLM responses with their types"""
     try:
-        stream = context.gemini.generate_content(
-            model="gemini-pro",
+        stream = context.gemini.models.generate_content(
+            model="gemini-2.0-flash-exp",
             contents=[{"role": m["role"], "parts": [{"text": m["content"]}]} for m in messages],
             tools=TOOLS,
             stream=True
