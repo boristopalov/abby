@@ -12,7 +12,7 @@ Abby is under active development, and is in the middle of a migration, with poor
 
 - **Automatic Tracking**: Abby keeps track of any changes you make, like tweaking device parameters
 - **Chat Interface**: Chat with Abby about your music and ask for suggestions
-- **Audio Analysis**: Abby can listen to your tracks and provide detailed feedback on mix, arrangement, and musical elements
+- **Listens with you**: Abby hears what you hear in Ableton and can provide detailed feedback on mix, arrangement, and musical elements
 
 ## Installation
 
