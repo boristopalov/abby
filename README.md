@@ -6,7 +6,7 @@ This project started as a fork of [https://github.com/vroomai/live](https://gith
 
 ## Notes
 
-Currently migrating the backend from Deno to Python
+Abby is under active development, and is in the middle of a migration, with poor version control. Whoops! Give it a few days for a working version :) 
 
 ## Features
 
