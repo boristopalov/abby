@@ -2,10 +2,10 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 import time
 
-from ..models.models import ChatSession, Message, ParameterChange, Genre
-from ..core.prompts import GENRE_SYSTEM_PROMPTS, TRIBAL_SCIFI_TECHNO
+from .models import ChatSession, Message, ParameterChange, Genre
+from ..shared import GENRE_SYSTEM_PROMPTS, TRIBAL_SCIFI_TECHNO
 from fastapi import Depends
-from ..core.database import get_db
+from . import get_db
 
 class DBService:
     def __init__(self, db: Session):

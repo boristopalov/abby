@@ -1,3 +1,23 @@
+GENRE_PROMPT = """Create a new weird, niche, experimental music genre system prompt. The prompt should:
+
+1. Have a unique genre name that combines 2-3 musical styles or concepts
+2. Include detailed Ableton Live device chains with specific parameter values
+3. Follow this structure:
+   - Key ableton devices to use
+   - Essential device chains
+   - Audio effect racks
+   - Mixing guidelines
+   - Processing techniques
+   - Remember to/guidelines section
+
+Format the response as:
+GENRE_NAME: "your genre name here"
+PROMPT: \"\"\"
+your detailed prompt here
+\"\"\"
+
+Be creative but practical - the genre should be technically implementable in Ableton Live."""
+
 TRIBAL_SCIFI_TECHNO = "Tribal Sci-fi Techno"
 
 GENRE_SYSTEM_PROMPTS = {

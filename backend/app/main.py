@@ -4,12 +4,11 @@ from sqlalchemy.orm import Session
 import json
 from typing import Optional
 
-from .api.routes import router as api_router
-from .core.database import get_db
-from .core.context import ChatContext, get_context
-from .services.db_service import DBService, get_db_service
+from .routes import router as api_router
+from .chat import ChatContext, get_chat_context
+from .db.db_service import DBService, get_db_service
 from .agent import agent
-from .ableton.client import AbletonClient
+from .ableton import AbletonClient
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -39,7 +38,7 @@ async def websocket_endpoint(
     websocket: WebSocket,
     session_id: Optional[str] = None,
     db_service: DBService = Depends(get_db_service),
-    context: ChatContext = Depends(get_context)
+    context: ChatContext = Depends(get_chat_context)
 ):
     if not session_id:
         await websocket.close(code=4000, reason="Session ID is required")

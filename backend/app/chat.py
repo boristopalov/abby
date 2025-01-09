@@ -3,8 +3,8 @@ import os
 from typing import Optional, List, Dict, Any
 from google import genai
 
-from .prompts import GENRE_SYSTEM_PROMPTS, TRIBAL_SCIFI_TECHNO
-from ..services.db_service import DBService
+from .shared import GENRE_SYSTEM_PROMPTS, TRIBAL_SCIFI_TECHNO
+from .db.db_service import DBService
 
 
 @dataclass
@@ -14,7 +14,7 @@ class ChatContext:
     handlers_loading: bool = False
     messages: List[Dict[str, Any]] = None
     current_genre: Dict[str, str] = None
-    gemini = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+    completion_model = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
     def __post_init__(self):
         self.messages = []
@@ -41,6 +41,6 @@ class ChatContext:
 
 chat_context = ChatContext()
 
-def get_context():
+def get_chat_context():
     return chat_context
     

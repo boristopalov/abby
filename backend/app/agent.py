@@ -1,8 +1,10 @@
-from typing import Dict, Any, List, AsyncGenerator
+from typing import Dict, Any, List, AsyncGenerator, Tuple
 from pydantic import BaseModel
 import json
-from ..core.context import ChatContext
-from ..services.db_service import DBService
+from .chat import ChatContext, get_chat_context
+from .db.db_service import DBService
+from .shared import GENRE_PROMPT, GENRE_SYSTEM_PROMPTS
+import re
 
 # Tool schemas
 class GetDeviceParamsInput(BaseModel):
@@ -205,3 +207,32 @@ async def process_message(
                 })
         else:
             continue_loop = False
+
+
+async def generate_random_genre() -> Tuple[str, str]:
+    try:
+        context = get_chat_context()
+        response = await context.anthropic.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=2048,
+            messages=[{"role": "user", "content": GENRE_PROMPT}]
+        )
+
+        content = response.content[0].text if response.content[0].type == "text" else ""
+
+        genre_match = re.search(r'GENRE_NAME:\s*"([^"]+)"', content)
+        prompt_match = re.search(r'PROMPT:\s*"""\n([\s\S]+?)"""', content)
+
+        if not genre_match or not prompt_match:
+            raise ValueError("Failed to parse genre response")
+
+        genre_name = genre_match.group(1)
+        prompt = prompt_match.group(1).strip()
+
+        # Add the new genre to the GENRE_SYSTEM_PROMPTS
+        GENRE_SYSTEM_PROMPTS[genre_name] = prompt
+        
+        return genre_name, prompt
+    except Exception as e:
+        print("Error generating random genre:", str(e))
+        raise 

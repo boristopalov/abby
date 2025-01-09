@@ -3,10 +3,10 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 
-from ..core.database import get_db
-from ..services.db_service import DBService
-from ..services.genre_generator import generate_random_genre
-from ..core.context import get_context
+from .db import get_db
+from .db.db_service import DBService
+from .chat import get_context
+from .agent import generate_random_genre
 
 router = APIRouter()
 
@@ -18,8 +18,8 @@ class GenreResponse(BaseModel):
     defaultGenre: Optional[str]
     currentGenre: Optional[str]
 
-@router.get("/genres", response_model=GenreResponse)
-def get_genres(db: Session = Depends(get_db)):
+@router.get("/genres")
+def get_genres(db: Session = Depends(get_db)) -> GenreResponse:
     try:
         db_service = DBService(db)
         genres = db_service.get_genres()
