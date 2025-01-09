@@ -1,9 +1,15 @@
+from functools import lru_cache
 from typing import Dict, Optional, List
 from dataclasses import dataclass
 import time
 import threading
 import json
+import sys
+import os
 from fastapi import WebSocket
+
+# Add AbletonOSC to Python path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'AbletonOSC'))
 from AbletonOSC.client.client import AbletonOSCClient
 
 @dataclass
@@ -292,3 +298,7 @@ class AbletonClient:
         """Remove the websocket reference"""
         self.websocket = None
 
+
+@lru_cache()
+def get_ableton_client() -> AbletonClient:
+    return AbletonClient()

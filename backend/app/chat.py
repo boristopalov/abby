@@ -1,7 +1,5 @@
 from dataclasses import dataclass
-import os
 from typing import Optional, List, Dict, Any
-from google import genai
 
 from .shared import GENRE_SYSTEM_PROMPTS, TRIBAL_SCIFI_TECHNO
 from .db.db_service import DBService
@@ -14,7 +12,6 @@ class ChatContext:
     handlers_loading: bool = False
     messages: List[Dict[str, Any]] = None
     current_genre: Dict[str, str] = None
-    completion_model = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
     def __post_init__(self):
         self.messages = []

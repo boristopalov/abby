@@ -5,8 +5,8 @@ from pydantic import BaseModel
 
 from .db import get_db
 from .db.db_service import DBService
-from .chat import get_context
-from .agent import generate_random_genre
+from .chat import get_chat_context
+from .agent import get_agent
 
 router = APIRouter()
 
@@ -24,7 +24,7 @@ def get_genres(db: Session = Depends(get_db)) -> GenreResponse:
         db_service = DBService(db)
         genres = db_service.get_genres()
         default_genre = db_service.get_default_genre()
-        context = get_context()
+        context = get_chat_context()
         
         return {
             "genres": [g.name for g in genres],
@@ -43,7 +43,7 @@ def set_current_genre(genre_req: GenreRequest, db: Session = Depends(get_db)):
         if not existing_genre:
             raise HTTPException(status_code=404, detail="Genre not found")
             
-        context = get_context()
+        context = get_chat_context()
         context.set_current_genre(genre_req.genre)
         return {"success": True, "genre": genre_req.genre}
     except HTTPException as e:
@@ -83,9 +83,12 @@ def get_parameter_changes(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Failed to fetch parameter changes")
 
 @router.get("/random-genre")
-async def get_random_genre(db: Session = Depends(get_db)):
+async def get_random_genre(
+    db: Session = Depends(get_db),
+    agent = Depends(get_agent)
+):
     try:
-        genre_name, prompt = await generate_random_genre()
+        genre_name, prompt = await agent.generate_random_genre()
         if not genre_name:
             raise HTTPException(status_code=500, detail="Failed to generate genre name")
             

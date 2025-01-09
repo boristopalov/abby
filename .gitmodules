@@ -1,3 +1,3 @@
-[submodule "AbletonOSC"]
-	path = AbletonOSC
+ [submodule "backend/AbletonOSC"]
+	path = backend/AbletonOSC
 	url = https://github.com/ideoforms/AbletonOSC.git

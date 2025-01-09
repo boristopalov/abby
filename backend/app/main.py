@@ -1,14 +1,13 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
 import json
 from typing import Optional
 
 from .routes import router as api_router
-from .chat import ChatContext, get_chat_context
+from .chat import get_chat_context, ChatContext
 from .db.db_service import DBService, get_db_service
-from .agent import agent
-from .ableton import AbletonClient
+from .agent import get_agent, Agent
+from .ableton import AbletonClient, get_ableton_client
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -27,8 +26,6 @@ app.add_middleware(
 # Include API routes
 app.include_router(api_router, prefix="/api")
 
-ableton_client = AbletonClient()
-
 @app.get("/")
 async def root():
     return {"message": "Ableton Assistant API"}
@@ -38,6 +35,8 @@ async def websocket_endpoint(
     websocket: WebSocket,
     session_id: Optional[str] = None,
     db_service: DBService = Depends(get_db_service),
+    ableton_client: AbletonClient = Depends(get_ableton_client),
+    agent: Agent = Depends(get_agent),
     context: ChatContext = Depends(get_chat_context)
 ):
     if not session_id:
@@ -77,26 +76,41 @@ async def websocket_endpoint(
 
             if msg == "get-param-changes":
                 changes_summary = ableton_client.get_recent_parameter_changes()
-                async for chunk in agent.process_message({
-                    "role": "user",
-                    "content": json.dumps(changes_summary)
-                }, context, db_service, ableton_client):
+                async for chunk in agent.process_message(
+                    context,
+                    {
+                        "role": "user",
+                        "content": json.dumps(changes_summary)
+                    },
+                    db_service,
+                    ableton_client
+                ):
                     await websocket.send_json(chunk)
                 continue
 
             if data.get("type") == "suggestion_response":
                 if data.get("response") == "yes":
-                    async for chunk in agent.process_message({
-                        "role": "user",
-                        "content": "Yes, please make the suggestions you outlined."
-                    }, context, db_service, ableton_client):
+                    async for chunk in agent.process_message(
+                        context,
+                        {
+                            "role": "user",
+                            "content": "Yes, please make the suggestions you outlined."
+                        },
+                        db_service,
+                        ableton_client
+                    ):
                         await websocket.send_json(chunk)
                 continue
 
-            async for chunk in agent.process_message({
-                "role": "user",
-                "content": msg
-            }, context, db_service, ableton_client):
+            async for chunk in agent.process_message(
+                context,
+                {
+                    "role": "user",
+                    "content": msg
+                },
+                db_service,
+                ableton_client
+            ):
                 await websocket.send_json(chunk)
 
     except WebSocketDisconnect:
