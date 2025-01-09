@@ -2,6 +2,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import json
 from typing import Optional
+import traceback
 
 from .routes import router as api_router
 from .chat import get_chat_context, ChatContext
@@ -33,13 +34,13 @@ async def root():
 @app.websocket("/ws")
 async def websocket_endpoint(
     websocket: WebSocket,
-    session_id: Optional[str] = None,
+    sessionId: Optional[str] = None,
     db_service: DBService = Depends(get_db_service),
     ableton_client: AbletonClient = Depends(get_ableton_client),
     agent: Agent = Depends(get_agent),
     context: ChatContext = Depends(get_chat_context)
 ):
-    if not session_id:
+    if not sessionId:
         await websocket.close(code=4000, reason="Session ID is required")
         return
 
@@ -47,14 +48,14 @@ async def websocket_endpoint(
 
     try:
         # Clear message history if this is a new session
-        if session_id != context.current_session_id:
+        if sessionId != context.current_session_id:
             context.clear_messages()
-            context.current_session_id = session_id
-            session = db_service.get_chat_session(session_id)
+            context.current_session_id = sessionId
+            session = db_service.get_chat_session(sessionId)
             if not session:
-                db_service.create_chat_session("Chat Session 123", session_id)
+                db_service.create_chat_session("Chat Session 123", sessionId)
 
-        ableton_client.set_ws_client(websocket)
+        ableton_client.set_websocket(websocket)
         
         if not context.handlers_initialized and not context.handlers_loading:
             context.handlers_loading = True
@@ -114,11 +115,12 @@ async def websocket_endpoint(
                 await websocket.send_json(chunk)
 
     except WebSocketDisconnect:
-        ableton_client.unset_ws_client()
+        ableton_client.unset_websocket()
     except Exception as e:
         print(f"WebSocket error: {str(e)}")
+        traceback.print_exc()
         await websocket.close(code=1011, reason=str(e))
-        ableton_client.unset_ws_client()
+        ableton_client.unset_websocket()
 
 if __name__ == "__main__":
     import uvicorn

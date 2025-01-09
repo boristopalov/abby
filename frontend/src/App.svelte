@@ -64,7 +64,7 @@
   });
 
   async function connectWebSocket() {
-    ws = new WebSocket(`ws://localhost:8000?sessionId=${$activeSessionId}`);
+    ws = new WebSocket(`ws://localhost:8000/ws?sessionId=${$activeSessionId}`);
 
     ws.onopen = async () => {
       const msgs = await getSessionMessages($activeSessionId);

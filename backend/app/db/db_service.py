@@ -16,7 +16,7 @@ class DBService:
         new_session = ChatSession(
             id=id,
             name=name,
-            timestamp=timestamp,
+            created_at=timestamp,
             messages=[],
         )
         self.db.add(new_session)

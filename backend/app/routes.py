@@ -4,7 +4,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 from .db import get_db
-from .db.db_service import DBService
+from .db.db_service import DBService, get_db_service
 from .chat import get_chat_context
 from .agent import get_agent
 
@@ -19,9 +19,8 @@ class GenreResponse(BaseModel):
     currentGenre: Optional[str]
 
 @router.get("/genres")
-def get_genres(db: Session = Depends(get_db)) -> GenreResponse:
+def get_genres(db_service: DBService = Depends(get_db_service)) -> GenreResponse:
     try:
-        db_service = DBService(db)
         genres = db_service.get_genres()
         default_genre = db_service.get_default_genre()
         context = get_chat_context()
@@ -35,9 +34,8 @@ def get_genres(db: Session = Depends(get_db)) -> GenreResponse:
         raise HTTPException(status_code=500, detail="Failed to fetch genres")
 
 @router.post("/genres/set-current")
-def set_current_genre(genre_req: GenreRequest, db: Session = Depends(get_db)):
+def set_current_genre(genre_req: GenreRequest, db_service: DBService = Depends(get_db_service)):
     try:
-        db_service = DBService(db)
         existing_genre = db_service.get_genre_by_name(genre_req.genre)
         
         if not existing_genre:
@@ -52,9 +50,8 @@ def set_current_genre(genre_req: GenreRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Failed to set current genre")
 
 @router.post("/genres/set-default")
-def set_default_genre(genre_req: GenreRequest, db: Session = Depends(get_db)):
+def set_default_genre(genre_req: GenreRequest, db_service: DBService = Depends(get_db_service)):
     try:
-        db_service = DBService(db)
         existing_genre = db_service.get_genre_by_name(genre_req.genre)
         
         if not existing_genre:
@@ -70,7 +67,6 @@ def set_default_genre(genre_req: GenreRequest, db: Session = Depends(get_db)):
 @router.get("/parameter-changes")
 def get_parameter_changes(db: Session = Depends(get_db)):
     try:
-        db_service = DBService(db)
         changes = db_service.get_recent_parameter_changes()
         
         if not changes:
@@ -84,7 +80,7 @@ def get_parameter_changes(db: Session = Depends(get_db)):
 
 @router.get("/random-genre")
 async def get_random_genre(
-    db: Session = Depends(get_db),
+    db_service: DBService = Depends(get_db_service),
     agent = Depends(get_agent)
 ):
     try:
@@ -92,7 +88,6 @@ async def get_random_genre(
         if not genre_name:
             raise HTTPException(status_code=500, detail="Failed to generate genre name")
             
-        db_service = DBService(db)
         db_service.add_genre(genre_name, prompt)
         
         return {
@@ -106,9 +101,8 @@ async def get_random_genre(
         raise HTTPException(status_code=500, detail="Failed to generate random genre")
 
 @router.get("/session/{session_id}/messages")
-def get_session_messages(session_id: str, db: Session = Depends(get_db)):
+def get_session_messages(session_id: str, db_service: DBService = Depends(get_db_service)):
     try:
-        db_service = DBService(db)
         session = db_service.get_session(session_id)
         
         if not session:

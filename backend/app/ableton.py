@@ -165,10 +165,10 @@ class AbletonClient:
                     )
 
                     if self.websocket:
-                        await self.websocket.send(json.dumps({
+                        await self.websocket.send_json({
                             "type": "parameter_change",
                             "content": change.__dict__
-                        }))
+                        })
 
                     metadata.value = value
                     metadata.time_last_modified = time.time()
@@ -213,10 +213,10 @@ class AbletonClient:
 
     async def _send_progress(self, progress: int):
         if self.websocket:
-            await self.websocket.send(json.dumps({
+            await self.websocket.send_json({
                 "type": "loading_progress",
                 "content": progress
-            }))
+            })
 
     async def get_parameters(self, track_id: int, device_id: int) -> List[ParameterInfo]:
         names = self.client.query("/live/device/get/parameters/name", [track_id, device_id])

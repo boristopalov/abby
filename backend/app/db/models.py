@@ -1,6 +1,6 @@
 from sqlalchemy import Boolean, Column, Integer, String, Float, ForeignKey, Text, Enum
 from sqlalchemy.orm import relationship
-from ..db import Base
+from ..db import Base, engine
 
 class ChatSession(Base):
     __tablename__ = "sessions"
@@ -19,7 +19,7 @@ class Message(Base):
     is_user = Column(Boolean, nullable=False)
     type = Column(Enum("text", "tool", "error", name="message_type"), default="text")
     timestamp = Column(Integer, nullable=False)
-    session = relationship("Session", back_populates="messages")
+    session = relationship("ChatSession", back_populates="messages")
 
 class ParameterChange(Base):
     __tablename__ = "parameter_changes"
@@ -44,3 +44,6 @@ class Genre(Base):
     name = Column(String, unique=True, nullable=False)
     system_prompt = Column(Text, nullable=False)
     is_default = Column(Boolean, default=False) 
+
+Base.metadata.drop_all(engine)
+Base.metadata.create_all(engine)

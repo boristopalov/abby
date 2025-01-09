@@ -31,7 +31,7 @@ interface RandomGenreResponse {
   genre: string;
 }
 
-const SERVER_BASE_URI = `http://localhost:8080`;
+const SERVER_BASE_URI = `http://localhost:8000/api`;
 
 export async function fetchGenres(): Promise<GenresResponse> {
   const response = await fetch(`${SERVER_BASE_URI}/genres`);
