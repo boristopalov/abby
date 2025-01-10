@@ -96,13 +96,13 @@ def get_parameter_changes(db_service: Session = Depends(get_db_service)):
         raise HTTPException(status_code=500, detail="Failed to fetch parameter changes")
 
 @router.get("/random-genre")
-async def get_random_genre(
+def get_random_genre(
     db_service: DBService = Depends(get_db_service),
     agent = Depends(get_agent)
 ):
     try:
         logger.info("[GET /api/random-genre] Generating random genre")
-        genre_name, prompt = await agent.generate_random_genre()
+        genre_name, prompt = agent.generate_random_genre()
         if not genre_name:
             logger.error("[GET /api/random-genre] Failed to generate genre name - received empty response")
             raise HTTPException(status_code=500, detail="Failed to generate genre name")

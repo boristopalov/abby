@@ -228,15 +228,22 @@ class Agent:
                 }
                 continue_loop = False
 
-    async def generate_random_genre(self) -> Tuple[str, str]:
+    def generate_random_genre(self) -> Tuple[str, str]:
         try:            
             logger.info("Generating random genre")
-            response = await self.completion_model.models.generate_content(
+            response = self.completion_model.models.generate_content(
                 model="gemini-2.0-flash-exp",
-                contents=GENRE_PROMPT,
+                contents=[types.Content(
+                    parts=[types.Part.from_text(GENRE_PROMPT)]
+                )],
                 config=types.GenerateContentConfig(max_output_tokens=2048)
             )
-            content = response.content[0].text if response.content[0].type == "text" else ""
+
+            if not response.candidates:
+                logger.error("No response candidates from Gemini")
+                raise ValueError("No response from model")
+
+            content = response.candidates[0].content.parts[0].text
 
             genre_match = re.search(r'GENRE_NAME:\s*"([^"]+)"', content)
             prompt_match = re.search(r'PROMPT:\s*"""\n([\s\S]+?)"""', content)
@@ -246,6 +253,7 @@ class Agent:
                 raise ValueError("Failed to parse genre response")
 
             genre_name = genre_match.group(1)
+            prompt = prompt_match.group(1)
             logger.info(f"Generated new genre: {genre_name}")
             
             # Add the new genre to the GENRE_SYSTEM_PROMPTS
