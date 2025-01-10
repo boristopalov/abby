@@ -106,6 +106,7 @@ async def websocket_endpoint(
                     ableton_client
                 ):
                     await websocket.send_json(chunk)
+                    await asyncio.sleep(0)  # Give the event loop a chance to send the message
                 continue
 
             if data.get("type") == "suggestion_response":
@@ -120,7 +121,9 @@ async def websocket_endpoint(
                         db_service,
                         ableton_client
                     ):
+                        logger.info(f"[WS /ws] Message response: {chunk}")
                         await websocket.send_json(chunk)
+                        await asyncio.sleep(0)  # Give the event loop a chance to send the message
                 continue
 
             logger.info(f"[WS /ws] Processing user message: {msg[:100]}...")  # Log first 100 chars of message
@@ -133,7 +136,9 @@ async def websocket_endpoint(
                 db_service,
                 ableton_client
             ):
+                logger.info(f"[WS /ws] Sending chunk: {chunk}")
                 await websocket.send_json(chunk)
+                await asyncio.sleep(0)  # Give the event loop a chance to send the message
 
     except WebSocketDisconnect:
         logger.info(f"[WS /ws] WebSocket disconnected for session: {sessionId}")

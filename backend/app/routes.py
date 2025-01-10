@@ -132,10 +132,22 @@ def get_session_messages(session_id: str, db_service: DBService = Depends(get_db
             logger.warning(f"[GET /api/session/{session_id}/messages] Session not found: {session_id}")
             raise HTTPException(status_code=404, detail="Session not found")
             
+        camel_case_messages = [
+            {snake_to_camel(k): v for k, v in message.__dict__.items() 
+             if not k.startswith('_') and k != 'session'}
+            for message in session.messages
+        ]
+
         logger.info(f"[GET /api/session/{session_id}/messages] Successfully fetched messages for session: {session_id}")
-        return {"messages": session.messages}
+        return {"messages": camel_case_messages}
     except HTTPException as e:
         raise e
     except Exception as e:
         logger.error(f"[GET /api/session/{session_id}/messages] Failed to fetch session messages: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch session messages")
+
+
+def snake_to_camel(snake_str):
+    """Converts a snake_case string to camelCase."""
+    components = snake_str.split('_')
+    return components[0] + ''.join(x.title() for x in components[1:])

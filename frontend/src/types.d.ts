@@ -2,7 +2,7 @@ export interface ChatMessage {
   text: string;
   isUser: boolean;
   timestamp?: number;
-  type?: "text" | "tool" | "error";
+  type?: "text" | "function_call" | "error";
 }
 
 export interface ParameterChange {

@@ -101,5 +101,6 @@ export async function getSessionMessages(
     throw new Error("Failed to fetch session messages");
   }
 
+  console.log("MESSAGES:", data.messages);
   return data.messages;
 }

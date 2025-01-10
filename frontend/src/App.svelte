@@ -15,13 +15,13 @@
   interface WebSocketMessage {
     type:
       | "text"
-      | "tool"
+      | "function_call"
       | "end_message"
       | "confirmation"
       | "error"
       | "loading_progress"
       | "parameter_change";
-    content: string | number | ParameterChange;
+    content: string | number | ParameterChange | object;
   }
 
   let inputMessage = $state("");
@@ -244,14 +244,14 @@
         showParameterPanel = true;
         break;
 
-      case "tool":
+      case "function_call":
         isModelThinking = true;
         messages.update((msgs) => [
           ...msgs,
           {
             text: formatMessage(data.content as string),
             isUser: false,
-            type: "tool",
+            type: "function_call",
           },
         ]);
         break;
@@ -393,13 +393,13 @@
                       ? "bg-blue-500 text-white"
                       : message.type === "error"
                         ? "bg-red-500/20 text-red-200"
-                        : message.type === "tool"
+                        : message.type === "function_call"
                           ? "bg-purple-500/20 text-purple-200"
                           : "bg-gray-800 text-gray-100"
                   }`}
                 >
                   <div class="flex items-start gap-2">
-                    {#if message.type === "tool"}
+                    {#if message.type === "function_call"}
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         class="h-5 w-5 mt-0.5"

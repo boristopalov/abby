@@ -2,12 +2,14 @@ from functools import lru_cache
 import os
 from typing import Dict, Any, List, AsyncGenerator, Tuple
 from pydantic import BaseModel
-import json
+
+from .ableton import AbletonClient
 from .chat import ChatContext, get_chat_context
 from .db.db_service import DBService
 from .shared import GENRE_PROMPT, GENRE_SYSTEM_PROMPTS
 import re
-from google.genai import Client
+from google.genai import Client, types
+from .logger import logger
 
 # Tool schemas
 class GetDeviceParamsInput(BaseModel):
@@ -22,120 +24,101 @@ class SetDeviceParamInput(BaseModel):
 
 class Agent:
     def __init__(self, completion_model: Client):
+        logger.info("Initializing Agent with Gemini model")
         self.completion_model = completion_model
+        self.tools = self._setup_tools()
 
-    TOOLS = [
-        {
-            "name": "get_tracks_devices",
-            "description": "get all devices of all tracks",
-            "input_schema": {
-                "type": "object",
-                "properties": {},
+    def _setup_tools(self) -> List[types.Tool]:
+        logger.debug("Setting up tool declarations")
+        tool_declarations = [
+            {
+                "name": "get_tracks_devices",
+                "description": "get all devices of all tracks",
             },
-        },
-        {
-            "name": "get_device_params",
-            "description": "get a specific device's params",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "track_id": {"type": "number"},
-                    "device_id": {"type": "number"},
-                },
+            {
+                "name": "get_device_params",
+                "description": "get a specific device's params",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "track_id": {
+                            "type": "NUMBER",
+                            "description": "The track ID"
+                        },
+                        "device_id": {
+                            "type": "NUMBER",
+                            "description": "The device ID"
+                        }
+                    },
+                    "required": ["track_id", "device_id"]
+                }
             },
-        },
-        {
-            "name": "set_device_param",
-            "description": "set a specific device's param",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "track_id": {"type": "number"},
-                    "device_id": {"type": "number"},
-                    "param_id": {"type": "number"},
-                    "value": {"type": "number"},
-                },
-                "required": ["track_id", "device_id", "param_id", "value"],
-            },
-        },
-    ]
+            {
+                "name": "set_device_param",
+                "description": "set a specific device's param",
+                "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "track_id": {
+                            "type": "NUMBER",
+                            "description": "The track ID"
+                        },
+                        "device_id": {
+                            "type": "NUMBER",
+                            "description": "The device ID"
+                        },
+                        "param_id": {
+                            "type": "NUMBER",
+                            "description": "The parameter ID to modify"
+                        },
+                        "value": {
+                            "type": "NUMBER",
+                            "description": "The new value to set"
+                        }
+                    },
+                    "required": ["track_id", "device_id", "param_id", "value"]
+                }
+            }
+        ]
+        return [types.Tool(function_declarations=[decl]) for decl in tool_declarations]
 
-    async def generate_response(self, osc_handler: Any, tool_call: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle tool calls and generate responses"""
+    async def generate_function_response(self, osc_handler: AbletonClient, function_call_part: types.Part) -> types.Part:
+        """Handle function calls and generate responses using the new Gemini API format"""
         try:
-            tool_name = tool_call.get("name")
-            tool_args = tool_call.get("args", {})
+            function_name = function_call_part.function_call.name
+            function_args = function_call_part.function_call.args
+            logger.info(f"Handling function call: {function_name} with args: {function_args}")
 
-            if tool_name == "get_tracks_devices":
+            if function_name == "get_tracks_devices":
                 result = await osc_handler.get_tracks_devices()
-                return {
-                    "role": "tool",
-                    "name": tool_name,
-                    "content": json.dumps(result)
-                }
             
-            elif tool_name == "get_device_params":
-                args = GetDeviceParamsInput(**tool_args)
+            elif function_name == "get_device_params":
+                args = GetDeviceParamsInput(**function_args)
                 result = await osc_handler.get_device_params(args.track_id, args.device_id)
-                return {
-                    "role": "tool",
-                    "name": tool_name,
-                    "content": json.dumps(result)
-                }
             
-            elif tool_name == "set_device_param":
-                args = SetDeviceParamInput(**tool_args)
-                result = await osc_handler.set_device_param(
+            elif function_name == "set_device_param":
+                args = SetDeviceParamInput(**function_args)
+                result = await osc_handler.set_parameter(
                     args.track_id, 
                     args.device_id, 
                     args.param_id, 
                     args.value
                 )
-                return {
-                    "role": "tool",
-                    "name": tool_name,
-                    "content": json.dumps(result)
-                }
             
             else:
-                raise ValueError(f"Unknown tool: {tool_name}")
+                raise ValueError(f"Unknown function: {function_name}")
 
-        except Exception as e:
-            return {
-                "role": "tool",
-                "name": tool_name,
-                "content": json.dumps({"error": str(e)}),
-                "is_error": True
-            }
-
-    async def stream_llm_response(self, context: ChatContext) -> AsyncGenerator[Dict[str, Any], None]:
-        """Stream LLM responses with their types"""
-        try:
-            stream = self.completion_model.models.generate_content(
-                model="gemini-2.0-flash-exp",
-                contents=[{"role": m["role"], "parts": [{"text": m["content"]}]} for m in context.messages],
-                tools=self.TOOLS,
-                stream=True
+            return types.Part.from_function_response(
+                name=function_name,
+                response={"result": result}
             )
 
-            for chunk in stream:
-                if chunk.text:
-                    yield {
-                        "type": "text",
-                        "content": chunk.text
-                    }
-                
-            # Signal end of message
-            yield {
-                "type": "end_message",
-                "content": "<|END_MESSAGE|>"
-            }
-
         except Exception as e:
-            yield {
-                "type": "error",
-                "content": f"Error: {str(e)}"
-            }
+            logger.error(f"Error handling function call {function_name}: {str(e)}")
+            return types.Part.from_function_response(
+                name=function_name,
+                response={"error": str(e)}
+            )
 
     async def process_message(
         self,
@@ -145,17 +128,24 @@ class Agent:
         osc_handler: Any
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Process messages and yield responses"""
-        session = db_service.get_session(context.current_session_id)
+        session = db_service.get_chat_session(context.current_session_id)
         if not session:
+            logger.error(f"No active session found for ID: {context.current_session_id}")
             yield {
                 "type": "error",
                 "content": "No active session"
             }
             return
 
+        logger.info(f"Processing message for session {context.current_session_id}")
+        
         # Add message to context and database
-        context.add_message(message)
         if message["role"] == "user":
+            logger.info(f"Adding user message to database: {message}")
+            context.add_message(types.Content(
+                role="user",
+                parts=[types.Part.from_text(message["content"])]
+            ))
             db_service.add_message(context.current_session_id, {
                 "text": message["content"],
                 "isUser": True,
@@ -164,63 +154,87 @@ class Agent:
 
         continue_loop = True
         while continue_loop:
-            # Stream LLM response
-            response_text = ""
-            async for chunk in self.stream_llm_response(context):
-                if chunk["type"] == "error":
-                    yield chunk
-                    continue_loop = False
-                    break
-                    
-                yield chunk
-                if chunk["type"] == "text":
-                    response_text += chunk["content"]
+            try:
+                logger.info("Generating response from Gemini")
+                response_text = ""
+                has_function_call = False
 
-            if not continue_loop:
-                break
+                stream = self.completion_model.models.generate_content_stream(
+                    model="gemini-2.0-flash-exp",
+                    contents=context.get_messages(),
+                    config=types.GenerateContentConfig(
+                        tools=self.tools,
+                        max_output_tokens=2048,
+                    )
+                )
 
-            # Add assistant message to context and database
-            context.add_message({
-                "role": "assistant",
-                "content": response_text
-            })
-            db_service.add_message(context.current_session_id, {
-                "text": response_text,
-                "isUser": False,
-                "type": "text"
-            })
+                for chunk in stream:
+                    # logger.info(f"CHUNK: {chunk}")
+                    for part in chunk.candidates[0].content.parts:
+                        if hasattr(part, "text") and part.text:
+                            logger.debug(f"Received text: {part.text[:50]}...")
+                            response_text += part.text
+                            yield {
+                                "type": "text",
+                                "content": part.text
+                            }
+                        elif hasattr(part, "function_call"):
+                            has_function_call = True
+                            logger.debug(f"Received function call: {part.function_call.name}")
+                            yield {
+                                "type": "function_call",
+                                "content": part.function_call.name
+                            }
+                            
+                            # Handle the function call
+                            function_response = await self.generate_function_response(osc_handler, part)
+                            logger.info(f"function response: {str(function_response)}")
+                            context.add_message(types.Content(
+                                role="assistant",
+                                parts=[part]
+                            ))
+                            context.add_message(types.Content(
+                                role="assistant",
+                                parts=[function_response]
+                            ))
 
-            # Handle tool calls if present
-            tool_calls = []  # TODO: Extract tool calls from Gemini response
-            if tool_calls:
-                for tool_call in tool_calls:
-                    yield {
-                        "type": "tool",
-                        "content": tool_call["name"]
-                    }
-
-                    response = await self.generate_response(osc_handler, tool_call)
-                    if response.get("is_error"):
-                        yield {
-                            "type": "error",
-                            "content": "Tool usage failed!"
-                        }
-                        continue_loop = False
-                        break
-
-                    context.add_message({
-                        "role": "user",
-                        "content": response
+                # Store the final text response if we have one
+                if response_text:
+                    context.add_message(types.Content(
+                        role="assistant",
+                        parts=[types.Part.from_text(response_text)]
+                    ))
+                    db_service.add_message(context.current_session_id, {
+                        "text": response_text,
+                        "isUser": False,
+                        "type": "text"
                     })
-            else:
+
+                # Exit loop if no function calls were made
+                if not has_function_call:
+                    continue_loop = False
+
+                # Signal end of current iteration
+                yield {
+                    "type": "end_message",
+                    "content": "<|END_MESSAGE|>"
+                }
+
+            except Exception as e:
+                logger.error(f"Error in process_message: {str(e)}")
+                yield {
+                    "type": "error",
+                    "content": f"Error: {str(e)}"
+                }
                 continue_loop = False
 
     async def generate_random_genre(self) -> Tuple[str, str]:
         try:            
+            logger.info("Generating random genre")
             response = await self.completion_model.models.generate_content(
                 model="gemini-2.0-flash-exp",
                 contents=GENRE_PROMPT,
-                generation_config={"max_output_tokens": 2048}
+                config=types.GenerateContentConfig(max_output_tokens=2048)
             )
             content = response.content[0].text if response.content[0].type == "text" else ""
 
@@ -228,19 +242,19 @@ class Agent:
             prompt_match = re.search(r'PROMPT:\s*"""\n([\s\S]+?)"""', content)
 
             if not genre_match or not prompt_match:
+                logger.error("Failed to parse genre response")
                 raise ValueError("Failed to parse genre response")
 
             genre_name = genre_match.group(1)
-            prompt = prompt_match.group(1).strip()
-
+            logger.info(f"Generated new genre: {genre_name}")
+            
             # Add the new genre to the GENRE_SYSTEM_PROMPTS
             GENRE_SYSTEM_PROMPTS[genre_name] = prompt
             
             return genre_name, prompt
         except Exception as e:
-            print("Error generating random genre:", str(e))
-
-
+            logger.error(f"Error generating random genre: {str(e)}")
+            raise
 
 
 @lru_cache()
