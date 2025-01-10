@@ -1,12 +1,13 @@
+import asyncio
 from functools import lru_cache
 from typing import Dict, Optional, List
 from dataclasses import dataclass
 import time
 import threading
-import json
 import sys
 import os
 from fastapi import WebSocket
+from .logger import logger
 
 # Add AbletonOSC to Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'AbletonOSC'))
@@ -63,14 +64,17 @@ class ParameterChange:
 
 class AbletonClient:
     def __init__(self, hostname="127.0.0.1", port=11000, client_port=11001):
+        logger.info(f"[ABLETON] Initializing AbletonClient on {hostname}:{port}")
         self.client = AbletonOSCClient(hostname, port, client_port)
         self.parameter_metadata: Dict[str, ParameterData] = {}
         self.websocket: Optional[WebSocket] = None
+        self.event_loop: Optional[asyncio.AbstractEventLoop] = None
         
     def _get_param_key(self, track_id: int, device_id: int, param_id: int) -> str:
         return f"{track_id}-{device_id}-{param_id}"
 
     async def get_tracks_devices(self, send_progress: bool = False) -> List[TrackInfo]:
+        logger.info("[ABLETON] Starting track and device discovery")
         summary = []
         
         # Get track count
@@ -78,6 +82,7 @@ class AbletonClient:
             await self._send_progress(0)
             
         num_tracks = self.client.query("/live/song/get/num_tracks")[0]
+        logger.info(f"[ABLETON] Found {num_tracks} tracks")
         
         if send_progress:
             await self._send_progress(10)
@@ -98,10 +103,13 @@ class AbletonClient:
             track_num_devices = self.client.query("/live/track/get/num_devices", [track_index])[1]
             
             if track_num_devices == 0:
+                logger.debug(f"[ABLETON] Track {track_name} has no devices, skipping")
                 continue
 
             track_device_names = self.client.query("/live/track/get/devices/name", [track_index])
             track_device_classes = self.client.query("/live/track/get/devices/class_name", [track_index])
+
+            logger.info(f"[ABLETON] Track '{track_name}' has {track_num_devices} devices")
 
             devices = [
                 DeviceInfo(
@@ -121,9 +129,11 @@ class AbletonClient:
         if send_progress:
             await self._send_progress(50)
 
+        logger.info("[ABLETON] Completed track and device discovery")
         return summary
 
     async def subscribe_to_device_parameters(self):
+        logger.info("[ABLETON] Starting parameter subscription process")
         # First get all tracks and their devices
         if self.websocket:
             await self._send_progress(0)
@@ -163,11 +173,24 @@ class AbletonClient:
                         max=metadata.max,
                         timestamp=time.time() * 1000
                     )
+                    logger.info(f"[ABLETON] Parameter change detected: {metadata.track_name}/{metadata.device_name}/{metadata.param_name}: {metadata.value:.2f} -> {value:.2f}")
 
                     if self.websocket:
                         await self.websocket.send_json({
                             "type": "parameter_change",
-                            "content": change.__dict__
+                            "content": {
+                                "trackId": change.track_id,
+                                "trackName": change.track_name,
+                                "deviceId": change.device_id,
+                                "deviceName": change.device_name,
+                                "paramId": change.param_id,
+                                "paramName": change.param_name,
+                                "oldValue": change.old_value,
+                                "newValue": change.new_value,
+                                "min": change.min,
+                                "max": change.max,
+                                "timestamp": change.timestamp
+                            }
                         })
 
                     metadata.value = value
@@ -176,18 +199,24 @@ class AbletonClient:
                     metadata.debounce_timer = None
 
                 # Set new timer
-                metadata.debounce_timer = threading.Timer(0.5, send_change)
-                metadata.debounce_timer.start()
+                metadata.debounce_timer = self.event_loop.call_later(
+                    0.5,
+                    lambda: asyncio.create_task(send_change())
+                )
 
         # Register the handler
         self.client.set_handler("/live/device/get/parameter/value", on_parameter_change)
+        logger.info("[ABLETON] Registered parameter change handler")
 
         # Subscribe to all parameters
+        total_params = 0
         for track in tracks:
             for device in track.devices:
                 parameters = await self.get_parameters(track.id, device.id)
+                logger.info(f"[ABLETON] Subscribing to parameters for {track.track_name}/{device.name}")
                 
                 for param in parameters:
+                    total_params += 1
                     key = self._get_param_key(track.id, device.id, param.id)
                     self.parameter_metadata[key] = ParameterData(
                         track_id=track.id,
@@ -208,6 +237,8 @@ class AbletonClient:
                         [track.id, device.id, param.id]
                     )
 
+        logger.info(f"[ABLETON] Successfully subscribed to {total_params} parameters across {len(tracks)} tracks")
+
         if self.websocket:
             await self._send_progress(100)
 
@@ -217,6 +248,7 @@ class AbletonClient:
                 "type": "loading_progress",
                 "content": progress
             })
+            logger.debug(f"[ABLETON] Progress update: {progress}%")
 
     async def get_parameters(self, track_id: int, device_id: int) -> List[ParameterInfo]:
         names = self.client.query("/live/device/get/parameters/name", [track_id, device_id])
@@ -241,6 +273,8 @@ class AbletonClient:
         param_names = self.client.query("/live/device/get/parameters/name", [track_id, device_id])
         param_name = param_names[param_id]
 
+        logger.info(f"[ABLETON] Setting parameter {device_name}/{param_name} to {value}")
+
         # Get original parameter value string
         original_value = self.client.query(
             "/live/device/get/parameter/value_string",
@@ -259,6 +293,8 @@ class AbletonClient:
             [track_id, device_id, param_id]
         )
 
+        logger.info(f"[ABLETON] Parameter {device_name}/{param_name} changed from {original_value} to {final_value}")
+
         return {
             "device": device_name,
             "param": param_name,
@@ -267,38 +303,50 @@ class AbletonClient:
         }
 
     async def unsubscribe_from_device_parameters(self):
+        logger.info("[ABLETON] Starting parameter unsubscription process")
         tracks = await self.get_tracks_devices()
         
         # Clear all stored metadata
         self.parameter_metadata.clear()
 
         # Unsubscribe from all parameters
+        total_params = 0
         for track in tracks:
             for device in track.devices:
                 parameters = await self.get_parameters(track.id, device.id)
                 
                 for param in parameters:
+                    total_params += 1
                     self.client.send_message(
                         "/live/device/stop_listen/parameter/value",
                         [track.id, device.id, param.id]
                     )
 
+        logger.info(f"[ABLETON] Successfully unsubscribed from {total_params} parameters")
+
     async def is_live(self) -> bool:
         try:
             self.client.query("/live/test", timeout=5.0)
+            logger.info("[ABLETON] Successfully connected to Ableton Live")
             return True
         except RuntimeError:
+            logger.error("[ABLETON] Failed to connect to Ableton Live")
             return False
 
-    def set_websocket(self, websocket: WebSocket):
+    def set_websocket(self, websocket: WebSocket, loop: asyncio.AbstractEventLoop):
         """Set the websocket for sending updates"""
         self.websocket = websocket
+        self.event_loop = loop
+        logger.info("[ABLETON] WebSocket connection established")
 
     def unset_websocket(self):
         """Remove the websocket reference"""
         self.websocket = None
+        self.event_loop = None
+        logger.info("[ABLETON] WebSocket connection removed")
 
 
 @lru_cache()
 def get_ableton_client() -> AbletonClient:
+    logger.info("[ABLETON] Creating new AbletonClient instance")
     return AbletonClient()

@@ -26,15 +26,17 @@ class ChatContext:
     def clear_messages(self) -> None:
         self.messages = []
 
-    def set_current_genre(self, genre: str, db_service: DBService) -> None:
-        genre_data = db_service.get_genre_by_name(genre)
-        if not genre_data:
-            raise ValueError(f"Genre {genre} not found")
-        
+    def set_current_genre(self, genre_name: str, prompt: str) -> None:
         self.current_genre = {
-            "genre": genre_data["name"],
-            "systemPrompt": genre_data["systemPrompt"]
+            "genre": genre_name,
+            "systemPrompt": prompt
         }
+
+    def reset_session(self):
+        self.handlers_initialized = False
+        self.current_session_id = None
+        self.messages = None
+        self.handlers_loading = False
 
 chat_context = ChatContext()
 

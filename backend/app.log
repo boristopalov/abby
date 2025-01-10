@@ -1,0 +1,511 @@
+2025-01-09 21:36:57,205 - uvicorn.error - INFO - Started server process [96673]
+2025-01-09 21:36:57,206 - uvicorn.error - INFO - Waiting for application startup.
+2025-01-09 21:36:57,207 - uvicorn.error - INFO - Application startup complete.
+2025-01-09 21:36:57,211 - uvicorn.error - INFO - ('127.0.0.1', 54442) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:36:57,217 - uvicorn.error - INFO - connection open
+2025-01-09 21:36:57,775 - ableton-assistant - INFO - Request: {'timestamp': '2025-01-09T21:36:57.775241', 'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500, 'process_time': '0.001s'}
+2025-01-09 21:37:06,285 - ableton-assistant - INFO - Request: {'timestamp': '2025-01-09T21:37:06.285027', 'method': 'GET', 'path': '/api/parameter-changes', 'status_code': 500, 'process_time': '0.001s'}
+2025-01-09 21:37:11,321 - uvicorn.error - INFO - Shutting down
+2025-01-09 21:37:11,322 - uvicorn.error - INFO - connection closed
+2025-01-09 21:37:11,422 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-01-09 21:37:11,423 - uvicorn.error - INFO - Application shutdown complete.
+2025-01-09 21:37:11,423 - uvicorn.error - INFO - Finished server process [96673]
+2025-01-09 21:37:12,323 - uvicorn.error - INFO - Started server process [96693]
+2025-01-09 21:37:12,325 - uvicorn.error - INFO - Waiting for application startup.
+2025-01-09 21:37:12,325 - uvicorn.error - INFO - Application startup complete.
+2025-01-09 21:37:12,333 - uvicorn.error - INFO - ('127.0.0.1', 54458) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:37:12,342 - uvicorn.error - INFO - connection open
+2025-01-09 21:37:12,883 - uvicorn.error - INFO - Shutting down
+2025-01-09 21:37:12,884 - uvicorn.error - INFO - connection closed
+2025-01-09 21:37:12,985 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-01-09 21:37:12,985 - uvicorn.error - INFO - Application shutdown complete.
+2025-01-09 21:37:12,985 - uvicorn.error - INFO - Finished server process [96693]
+2025-01-09 21:37:13,806 - uvicorn.error - INFO - Started server process [96697]
+2025-01-09 21:37:13,807 - uvicorn.error - INFO - Waiting for application startup.
+2025-01-09 21:37:13,808 - uvicorn.error - INFO - Application startup complete.
+2025-01-09 21:37:13,895 - uvicorn.error - INFO - ('127.0.0.1', 54467) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:37:13,904 - uvicorn.error - INFO - connection open
+2025-01-09 21:37:14,484 - ableton-assistant - INFO - Request: {'timestamp': '2025-01-09T21:37:14.484301', 'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500, 'process_time': '0.001s'}
+2025-01-09 21:37:33,494 - uvicorn.error - INFO - Shutting down
+2025-01-09 21:37:33,497 - uvicorn.error - INFO - connection closed
+2025-01-09 21:37:33,598 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-01-09 21:37:33,598 - uvicorn.error - INFO - Application shutdown complete.
+2025-01-09 21:37:33,599 - uvicorn.error - INFO - Finished server process [96697]
+2025-01-09 21:37:34,531 - uvicorn.error - INFO - Started server process [96720]
+2025-01-09 21:37:34,532 - uvicorn.error - INFO - Waiting for application startup.
+2025-01-09 21:37:34,532 - uvicorn.error - INFO - Application startup complete.
+2025-01-09 21:37:34,537 - uvicorn.error - INFO - ('127.0.0.1', 54487) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:37:34,543 - uvicorn.error - INFO - connection open
+2025-01-09 21:37:35,083 - ableton-assistant - INFO - Request: {'timestamp': '2025-01-09T21:37:35.083772', 'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500, 'process_time': '0.001s'}
+2025-01-09 21:38:06,281 - ableton-assistant - INFO - Request: {'timestamp': '2025-01-09T21:38:06.281851', 'method': 'GET', 'path': '/api/parameter-changes', 'status_code': 500, 'process_time': '0.001s'}
+2025-01-09 21:38:21,418 - uvicorn.error - INFO - Shutting down
+2025-01-09 21:38:21,424 - uvicorn.error - INFO - connection closed
+2025-01-09 21:38:21,522 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-01-09 21:38:21,523 - uvicorn.error - INFO - Application shutdown complete.
+2025-01-09 21:38:21,523 - uvicorn.error - INFO - Finished server process [96720]
+2025-01-09 21:38:22,563 - uvicorn.error - INFO - Started server process [96754]
+2025-01-09 21:38:22,564 - uvicorn.error - INFO - Waiting for application startup.
+2025-01-09 21:38:22,565 - uvicorn.error - INFO - Application startup complete.
+2025-01-09 21:38:22,570 - uvicorn.error - INFO - ('127.0.0.1', 54515) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:38:22,577 - uvicorn.error - INFO - connection open
+2025-01-09 21:38:23,171 - ableton-assistant - INFO - Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:38:23,171 - ableton-assistant - ERROR - Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:38:23,172 - ableton-assistant - INFO - Request: {'timestamp': '2025-01-09T21:38:23.172236', 'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500, 'process_time': '0.002s'}
+2025-01-09 21:38:31,960 - uvicorn.error - INFO - Shutting down
+2025-01-09 21:38:31,961 - uvicorn.error - INFO - connection closed
+2025-01-09 21:38:32,062 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-01-09 21:38:32,062 - uvicorn.error - INFO - Application shutdown complete.
+2025-01-09 21:38:32,063 - uvicorn.error - INFO - Finished server process [96754]
+2025-01-09 21:38:33,021 - uvicorn.error - INFO - Started server process [96778]
+2025-01-09 21:38:33,023 - uvicorn.error - INFO - Waiting for application startup.
+2025-01-09 21:38:33,023 - uvicorn.error - INFO - Application startup complete.
+2025-01-09 21:38:33,027 - uvicorn.error - INFO - ('127.0.0.1', 54526) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:38:33,037 - uvicorn.error - INFO - connection open
+2025-01-09 21:38:33,580 - ableton-assistant - INFO - Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:38:33,580 - ableton-assistant - ERROR - Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:38:33,581 - ableton-assistant - INFO - Request: {'timestamp': '2025-01-09T21:38:33.581109', 'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500, 'process_time': '0.001s'}
+2025-01-09 21:38:43,829 - uvicorn.error - INFO - Shutting down
+2025-01-09 21:38:43,831 - uvicorn.error - INFO - connection closed
+2025-01-09 21:38:43,931 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-01-09 21:38:43,932 - uvicorn.error - INFO - Application shutdown complete.
+2025-01-09 21:38:43,933 - uvicorn.error - INFO - Finished server process [96778]
+2025-01-09 21:38:44,839 - uvicorn.error - INFO - Started server process [96789]
+2025-01-09 21:38:44,841 - uvicorn.error - INFO - Waiting for application startup.
+2025-01-09 21:38:44,841 - uvicorn.error - INFO - Application startup complete.
+2025-01-09 21:38:44,846 - uvicorn.error - INFO - ('127.0.0.1', 54538) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:38:44,846 - ableton-assistant - INFO - WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:38:44,846 - ableton-assistant - INFO - New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:38:44,853 - ableton-assistant - INFO - Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:38:44,854 - ableton-assistant - INFO - Initializing parameter handlers for new session
+2025-01-09 21:38:44,855 - uvicorn.error - INFO - connection open
+2025-01-09 21:38:45,409 - ableton-assistant - INFO - Successfully set up handlers for new session
+2025-01-09 21:38:45,410 - ableton-assistant - INFO - Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:38:45,410 - ableton-assistant - ERROR - Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:38:45,412 - ableton-assistant - INFO - Request: {'timestamp': '2025-01-09T21:38:45.412031', 'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500, 'process_time': '0.002s'}
+2025-01-09 21:38:46,518 - uvicorn.error - INFO - Shutting down
+2025-01-09 21:38:46,519 - ableton-assistant - INFO - WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:38:46,519 - uvicorn.error - INFO - connection closed
+2025-01-09 21:38:46,620 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-01-09 21:38:46,620 - uvicorn.error - INFO - Application shutdown complete.
+2025-01-09 21:38:46,621 - uvicorn.error - INFO - Finished server process [96789]
+2025-01-09 21:38:47,330 - uvicorn.error - INFO - Started server process [96797]
+2025-01-09 21:38:47,331 - uvicorn.error - INFO - Waiting for application startup.
+2025-01-09 21:38:47,332 - uvicorn.error - INFO - Application startup complete.
+2025-01-09 21:38:47,528 - uvicorn.error - INFO - ('127.0.0.1', 54544) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:38:47,529 - ableton-assistant - INFO - WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:38:47,529 - ableton-assistant - INFO - New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:38:47,535 - ableton-assistant - INFO - Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:38:47,537 - ableton-assistant - INFO - Initializing parameter handlers for new session
+2025-01-09 21:38:47,537 - uvicorn.error - INFO - connection open
+2025-01-09 21:38:48,108 - ableton-assistant - INFO - Successfully set up handlers for new session
+2025-01-09 21:38:48,111 - ableton-assistant - INFO - Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:38:48,111 - ableton-assistant - ERROR - Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:38:48,112 - ableton-assistant - INFO - Request: {'timestamp': '2025-01-09T21:38:48.112596', 'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500, 'process_time': '0.003s'}
+2025-01-09 21:39:06,278 - ableton-assistant - INFO - Fetching recent parameter changes
+2025-01-09 21:39:06,281 - ableton-assistant - INFO - No recent parameter changes found
+2025-01-09 21:39:06,281 - ableton-assistant - INFO - Request: {'timestamp': '2025-01-09T21:39:06.281911', 'method': 'GET', 'path': '/api/parameter-changes', 'status_code': 200, 'process_time': '0.004s'}
+2025-01-09 21:39:20,244 - ableton-assistant - INFO - WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:39:20,252 - uvicorn.error - INFO - connection closed
+2025-01-09 21:39:20,452 - ableton-assistant - INFO - Fetching all genres
+2025-01-09 21:39:20,459 - ableton-assistant - ERROR - Failed to fetch genres: 'dict' object has no attribute 'genre'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 33, in get_genres
+    "currentGenre": context.current_genre.genre if context.current_genre else None
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'genre'
+2025-01-09 21:39:20,460 - uvicorn.error - INFO - ('127.0.0.1', 54571) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:39:20,464 - ableton-assistant - INFO - WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:39:20,465 - uvicorn.error - INFO - connection open
+2025-01-09 21:39:20,466 - ableton-assistant - INFO - Reusing existing parameter subscriptions
+2025-01-09 21:39:20,467 - ableton-assistant - INFO - Request: {'timestamp': '2025-01-09T21:39:20.467501', 'method': 'GET', 'path': '/api/genres', 'status_code': 500, 'process_time': '0.018s'}
+2025-01-09 21:39:20,471 - ableton-assistant - INFO - Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:39:20,472 - ableton-assistant - ERROR - Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:39:20,473 - ableton-assistant - INFO - Request: {'timestamp': '2025-01-09T21:39:20.473082', 'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500, 'process_time': '0.002s'}
+2025-01-09 21:40:20,448 - ableton-assistant - INFO - Fetching recent parameter changes
+2025-01-09 21:40:20,452 - ableton-assistant - INFO - No recent parameter changes found
+2025-01-09 21:40:20,453 - ableton-assistant - INFO - Request: {'timestamp': '2025-01-09T21:40:20.453438', 'method': 'GET', 'path': '/api/parameter-changes', 'status_code': 200, 'process_time': '0.007s'}
+2025-01-09 21:41:20,441 - ableton-assistant - INFO - Fetching recent parameter changes
+2025-01-09 21:41:20,442 - ableton-assistant - INFO - No recent parameter changes found
+2025-01-09 21:41:20,442 - ableton-assistant - INFO - Request: {'timestamp': '2025-01-09T21:41:20.442753', 'method': 'GET', 'path': '/api/parameter-changes', 'status_code': 200, 'process_time': '0.002s'}
+2025-01-09 21:42:20,443 - ableton-assistant - INFO - Fetching recent parameter changes
+2025-01-09 21:42:20,447 - ableton-assistant - INFO - No recent parameter changes found
+2025-01-09 21:42:20,448 - ableton-assistant - INFO - Request: {'timestamp': '2025-01-09T21:42:20.448429', 'method': 'GET', 'path': '/api/parameter-changes', 'status_code': 200, 'process_time': '0.007s'}
+2025-01-09 21:42:56,117 - uvicorn.error - INFO - Shutting down
+2025-01-09 21:42:56,120 - ableton-assistant - INFO - WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:42:56,121 - uvicorn.error - INFO - connection closed
+2025-01-09 21:42:56,220 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-01-09 21:42:56,221 - uvicorn.error - INFO - Application shutdown complete.
+2025-01-09 21:42:56,222 - uvicorn.error - INFO - Finished server process [96797]
+2025-01-09 21:42:57,116 - uvicorn.error - INFO - Started server process [96911]
+2025-01-09 21:42:57,118 - uvicorn.error - INFO - Waiting for application startup.
+2025-01-09 21:42:57,118 - uvicorn.error - INFO - Application startup complete.
+2025-01-09 21:42:57,131 - uvicorn.error - INFO - ('127.0.0.1', 54683) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:42:57,132 - ableton-assistant - INFO - WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:42:57,132 - ableton-assistant - INFO - New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:42:57,138 - ableton-assistant - INFO - Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:42:57,139 - ableton-assistant - INFO - Initializing parameter handlers for new session
+2025-01-09 21:42:57,140 - uvicorn.error - INFO - connection open
+2025-01-09 21:42:57,648 - ableton-assistant - INFO - Successfully set up handlers for new session
+2025-01-09 21:42:57,650 - ableton-assistant - INFO - [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:42:57,650 - ableton-assistant - ERROR - [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:42:57,651 - ableton-assistant - INFO - Request: {'timestamp': '2025-01-09T21:42:57.651545', 'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500, 'process_time': '0.003s'}
+2025-01-09 21:42:58,355 - uvicorn.error - INFO - Shutting down
+2025-01-09 21:42:58,356 - ableton-assistant - INFO - WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:42:58,356 - uvicorn.error - INFO - connection closed
+2025-01-09 21:42:58,456 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-01-09 21:42:58,457 - uvicorn.error - INFO - Application shutdown complete.
+2025-01-09 21:42:58,457 - uvicorn.error - INFO - Finished server process [96911]
+2025-01-09 21:42:59,187 - uvicorn.error - INFO - Started server process [96922]
+2025-01-09 21:42:59,191 - uvicorn.error - INFO - Waiting for application startup.
+2025-01-09 21:42:59,191 - uvicorn.error - INFO - Application startup complete.
+2025-01-09 21:42:59,363 - uvicorn.error - INFO - ('127.0.0.1', 54690) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:42:59,364 - ableton-assistant - INFO - WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:42:59,364 - ableton-assistant - INFO - New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:42:59,369 - ableton-assistant - INFO - Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:42:59,371 - ableton-assistant - INFO - Initializing parameter handlers for new session
+2025-01-09 21:42:59,371 - uvicorn.error - INFO - connection open
+2025-01-09 21:42:59,968 - ableton-assistant - INFO - Successfully set up handlers for new session
+2025-01-09 21:42:59,970 - ableton-assistant - INFO - [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:42:59,970 - ableton-assistant - ERROR - [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:42:59,971 - ableton-assistant - INFO - Request: {'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500}
+2025-01-09 21:43:06,459 - uvicorn.error - INFO - Shutting down
+2025-01-09 21:43:06,460 - ableton-assistant - INFO - WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:43:06,460 - uvicorn.error - INFO - connection closed
+2025-01-09 21:43:06,560 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-01-09 21:43:06,561 - uvicorn.error - INFO - Application shutdown complete.
+2025-01-09 21:43:06,561 - uvicorn.error - INFO - Finished server process [96922]
+2025-01-09 21:43:07,381 - uvicorn.error - INFO - Started server process [96942]
+2025-01-09 21:43:07,384 - uvicorn.error - INFO - Waiting for application startup.
+2025-01-09 21:43:07,385 - uvicorn.error - INFO - Application startup complete.
+2025-01-09 21:43:07,471 - uvicorn.error - INFO - ('127.0.0.1', 54698) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:43:07,471 - ableton-assistant - INFO - WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:43:07,471 - ableton-assistant - INFO - New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:43:07,477 - ableton-assistant - INFO - Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:43:07,478 - ableton-assistant - INFO - Initializing parameter handlers for new session
+2025-01-09 21:43:07,479 - uvicorn.error - INFO - connection open
+2025-01-09 21:43:08,078 - ableton-assistant - INFO - Successfully set up handlers for new session
+2025-01-09 21:43:08,079 - ableton-assistant - INFO - [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:43:08,079 - ableton-assistant - ERROR - [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:43:08,079 - ableton-assistant - INFO - Request: {'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500}
+2025-01-09 21:43:20,438 - ableton-assistant - INFO - [GET /api/parameter-changes] Fetching recent parameter changes
+2025-01-09 21:43:20,440 - ableton-assistant - INFO - [GET /api/parameter-changes] No recent parameter changes found
+2025-01-09 21:43:20,441 - ableton-assistant - INFO - Request: {'method': 'GET', 'path': '/api/parameter-changes', 'status_code': 200}
+2025-01-09 21:43:22,027 - uvicorn.error - INFO - Shutting down
+2025-01-09 21:43:22,028 - ableton-assistant - INFO - WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:43:22,028 - uvicorn.error - INFO - connection closed
+2025-01-09 21:43:22,130 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-01-09 21:43:22,130 - uvicorn.error - INFO - Application shutdown complete.
+2025-01-09 21:43:22,131 - uvicorn.error - INFO - Finished server process [96942]
+2025-01-09 21:43:23,102 - uvicorn.error - INFO - Started server process [96966]
+2025-01-09 21:43:23,104 - uvicorn.error - INFO - Waiting for application startup.
+2025-01-09 21:43:23,104 - uvicorn.error - INFO - Application startup complete.
+2025-01-09 21:43:23,108 - uvicorn.error - INFO - ('127.0.0.1', 54715) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:43:23,109 - ableton-assistant - INFO - [WS /ws] WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:43:23,109 - ableton-assistant - INFO - [WS /ws] New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:43:23,114 - ableton-assistant - INFO - [WS /ws] Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:43:23,116 - ableton-assistant - INFO - [WS /ws] Initializing parameter handlers for new session
+2025-01-09 21:43:23,117 - uvicorn.error - INFO - connection open
+2025-01-09 21:43:23,696 - ableton-assistant - INFO - [WS /ws] Successfully set up handlers for new session
+2025-01-09 21:43:23,697 - ableton-assistant - INFO - [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:43:23,697 - ableton-assistant - ERROR - [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:43:23,699 - ableton-assistant - INFO - Request: {'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500}
+2025-01-09 21:43:42,721 - uvicorn.error - INFO - Shutting down
+2025-01-09 21:43:42,725 - ableton-assistant - INFO - [WS /ws] WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:43:42,725 - uvicorn.error - INFO - connection closed
+2025-01-09 21:43:42,825 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-01-09 21:43:42,825 - uvicorn.error - INFO - Application shutdown complete.
+2025-01-09 21:43:42,825 - uvicorn.error - INFO - Finished server process [96966]
+2025-01-09 21:43:43,818 - uvicorn.error - INFO - Started server process [96993]
+2025-01-09 21:43:43,819 - uvicorn.error - INFO - Waiting for application startup.
+2025-01-09 21:43:43,820 - uvicorn.error - INFO - Application startup complete.
+2025-01-09 21:43:43,824 - uvicorn.error - INFO - ('127.0.0.1', 54732) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:43:43,824 - ableton-assistant - INFO - [WS /ws] WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:43:43,824 - ableton-assistant - INFO - [WS /ws] New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:43:43,829 - ableton-assistant - INFO - [WS /ws] Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:43:43,830 - ableton-assistant - INFO - [WS /ws] Initializing parameter handlers for new session
+2025-01-09 21:43:43,830 - uvicorn.error - INFO - connection open
+2025-01-09 21:43:44,475 - ableton-assistant - INFO - [WS /ws] Successfully set up handlers for new session
+2025-01-09 21:43:44,549 - ableton-assistant - INFO - [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:43:44,549 - ableton-assistant - ERROR - [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:43:44,552 - ableton-assistant - INFO - Request: {'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500}
+2025-01-09 21:44:20,437 - ableton-assistant - INFO - [GET /api/parameter-changes] Fetching recent parameter changes
+2025-01-09 21:44:20,443 - ableton-assistant - INFO - [GET /api/parameter-changes] No recent parameter changes found
+2025-01-09 21:44:20,444 - ableton-assistant - INFO - Request: {'method': 'GET', 'path': '/api/parameter-changes', 'status_code': 200}
+2025-01-09 21:44:22,553 - uvicorn.error - INFO - Shutting down
+2025-01-09 21:44:22,553 - ableton-assistant - INFO - [WS /ws] WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:44:22,553 - uvicorn.error - INFO - connection closed
+2025-01-09 21:44:22,654 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-01-09 21:44:22,654 - uvicorn.error - INFO - Application shutdown complete.
+2025-01-09 21:44:22,655 - uvicorn.error - INFO - Finished server process [96993]
+2025-01-09 21:44:23,547 [INFO] - Started server process [97015]
+2025-01-09 21:44:23,549 [INFO] - Waiting for application startup.
+2025-01-09 21:44:23,549 [INFO] - Application startup complete.
+2025-01-09 21:44:23,564 [INFO] - ('127.0.0.1', 54755) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:44:23,565 [INFO] - [WS /ws] WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:44:23,565 [INFO] - [WS /ws] New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:44:23,570 [INFO] - [WS /ws] Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:44:23,572 [INFO] - [WS /ws] Initializing parameter handlers for new session
+2025-01-09 21:44:23,572 [INFO] - connection open
+2025-01-09 21:44:24,164 [INFO] - [WS /ws] Successfully set up handlers for new session
+2025-01-09 21:44:24,165 [INFO] - [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:44:24,165 [ERROR] - [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:44:24,167 [INFO] - Request: {'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500}
+2025-01-09 21:44:32,462 [INFO] - Shutting down
+2025-01-09 21:44:32,462 [INFO] - [WS /ws] WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:44:32,463 [INFO] - connection closed
+2025-01-09 21:44:32,569 [INFO] - Waiting for application shutdown.
+2025-01-09 21:44:32,594 [INFO] - Application shutdown complete.
+2025-01-09 21:44:32,595 [INFO] - Finished server process [97015]
+2025-01-09 21:44:33,498 [INFO]  Started server process [97029]
+2025-01-09 21:44:33,500 [INFO]  Waiting for application startup.
+2025-01-09 21:44:33,500 [INFO]  Application startup complete.
+2025-01-09 21:44:33,504 [INFO]  ('127.0.0.1', 54777) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:44:33,505 [INFO]  [WS /ws] WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:44:33,505 [INFO]  [WS /ws] New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:44:33,509 [INFO]  [WS /ws] Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:44:33,511 [INFO]  [WS /ws] Initializing parameter handlers for new session
+2025-01-09 21:44:33,511 [INFO]  connection open
+2025-01-09 21:44:34,084 [INFO]  [WS /ws] Successfully set up handlers for new session
+2025-01-09 21:44:34,085 [INFO]  [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:44:34,085 [ERROR]  [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:44:34,086 [INFO]  Request: {'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500}
+2025-01-09 21:45:20,434 [INFO]  [GET /api/parameter-changes] Fetching recent parameter changes
+2025-01-09 21:45:20,440 [INFO]  [GET /api/parameter-changes] No recent parameter changes found
+2025-01-09 21:45:20,440 [INFO]  Request: {'method': 'GET', 'path': '/api/parameter-changes', 'status_code': 200}
+2025-01-09 21:45:43,468 [INFO]  Shutting down
+2025-01-09 21:45:43,499 [INFO]  [WS /ws] WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:45:43,500 [INFO]  connection closed
+2025-01-09 21:45:43,591 [INFO]  Waiting for application shutdown.
+2025-01-09 21:45:43,601 [INFO]  Application shutdown complete.
+2025-01-09 21:45:43,607 [INFO]  Finished server process [97029]
+2025-01-09 21:46:00,441 [INFO]  Started server process [97109]
+2025-01-09 21:46:00,443 [INFO]  Waiting for application startup.
+2025-01-09 21:46:00,443 [INFO]  Application startup complete.
+2025-01-09 21:46:00,449 [INFO]  ('127.0.0.1', 54824) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:46:00,450 [INFO]  [WS /ws] WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:46:00,450 [INFO]  [WS /ws] New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:46:00,454 [INFO]  [WS /ws] Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:46:00,456 [INFO]  [WS /ws] Initializing parameter handlers for new session
+2025-01-09 21:46:00,456 [INFO]  connection open
+2025-01-09 21:46:01,023 [INFO]  [WS /ws] Successfully set up handlers for new session
+2025-01-09 21:46:01,024 [INFO]  [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:46:01,024 [ERROR]  [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:46:01,025 [INFO]  Request: {'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500}
+2025-01-09 21:46:19,584 [INFO]  Shutting down
+2025-01-09 21:46:19,593 [INFO]  [WS /ws] WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:46:19,594 [INFO]  connection closed
+2025-01-09 21:46:19,691 [INFO]  Waiting for application shutdown.
+2025-01-09 21:46:19,692 [INFO]  Application shutdown complete.
+2025-01-09 21:46:19,692 [INFO]  Finished server process [97109]
+2025-01-09 21:46:20,762 [INFO]  Started server process [97149]
+2025-01-09 21:46:20,763 [INFO]  Waiting for application startup.
+2025-01-09 21:46:20,764 [INFO]  Application startup complete.
+2025-01-09 21:46:21,276 [INFO]      [GET /api/parameter-changes] Fetching recent parameter changes
+2025-01-09 21:46:21,281 [INFO]      [GET /api/parameter-changes] No recent parameter changes found
+2025-01-09 21:46:21,281 [INFO]  Request: {'method': 'GET', 'path': '/api/parameter-changes', 'status_code': 200}
+2025-01-09 21:46:21,282 [INFO]  ('127.0.0.1', 54859) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:46:21,282 [INFO]  [WS /ws] WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:46:21,282 [INFO]  [WS /ws] New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:46:21,284 [INFO]  [WS /ws] Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:46:21,285 [INFO]  [WS /ws] Initializing parameter handlers for new session
+2025-01-09 21:46:21,286 [INFO]  connection open
+2025-01-09 21:46:21,872 [INFO]  [WS /ws] Successfully set up handlers for new session
+2025-01-09 21:46:21,873 [INFO]      [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:46:21,873 [ERROR]      [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:46:21,875 [INFO]  Request: {'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500}
+2025-01-09 21:46:23,013 [INFO]  Shutting down
+2025-01-09 21:46:23,013 [INFO]  [WS /ws] WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:46:23,014 [INFO]  connection closed
+2025-01-09 21:46:23,114 [INFO]  Waiting for application shutdown.
+2025-01-09 21:46:23,115 [INFO]  Application shutdown complete.
+2025-01-09 21:46:23,115 [INFO]  Finished server process [97149]
+2025-01-09 21:46:23,933 [INFO]  Started server process [97164]
+2025-01-09 21:46:23,935 [INFO]  Waiting for application startup.
+2025-01-09 21:46:23,935 [INFO]  Application startup complete.
+2025-01-09 21:46:24,271 [INFO]  ('127.0.0.1', 54865) - "WebSocket /ws?sessionId=e04decbd-2b36-4744-b3f7-f61cc613f7e2" [accepted]
+2025-01-09 21:46:24,272 [INFO]  [WS /ws] WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:46:24,272 [INFO]  [WS /ws] New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:46:24,277 [INFO]  [WS /ws] Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:46:24,279 [INFO]  [WS /ws] Initializing parameter handlers for new session
+2025-01-09 21:46:24,279 [INFO]  connection open
+2025-01-09 21:46:24,782 [INFO]  [WS /ws] Successfully set up handlers for new session
+2025-01-09 21:46:24,783 [INFO]  [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:46:24,783 [ERROR]  [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:46:24,784 [INFO]  Request: {'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500}
+2025-01-09 21:48:16,535 [INFO]  [GET /api/parameter-changes] Fetching recent parameter changes
+2025-01-09 21:48:16,592 [INFO]  [GET /api/parameter-changes] No recent parameter changes found
+2025-01-09 21:48:16,593 [INFO]  Request: {'method': 'GET', 'path': '/api/parameter-changes', 'status_code': 200}
+2025-01-09 21:48:34,225 [INFO]  Shutting down
+2025-01-09 21:48:34,231 [INFO]  [WS /ws] WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:48:34,232 [INFO]  connection closed
+2025-01-09 21:48:34,331 [INFO]  Waiting for application shutdown.
+2025-01-09 21:48:34,332 [INFO]  Application shutdown complete.
+2025-01-09 21:48:34,332 [INFO]  Finished server process [97164]
+2025-01-09 21:48:35,346 [INFO]    [WS /ws] WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:48:35,346 [INFO]    [WS /ws] New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:48:35,352 [INFO]    [WS /ws] Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:48:35,354 [INFO]    [WS /ws] Initializing parameter handlers for new session
+2025-01-09 21:48:35,920 [INFO]    [WS /ws] Successfully set up handlers for new session
+2025-01-09 21:48:35,921 [INFO]    [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:48:35,921 [ERROR]    [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:48:35,922 [INFO]    Request: {'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500, 'process_time': '0.002s'}
+2025-01-09 21:48:57,248 [INFO]    [WS /ws] WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:48:58,634 [INFO]    [WS /ws] WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:48:58,635 [INFO]    [WS /ws] New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:48:58,644 [INFO]    [WS /ws] Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:48:58,647 [INFO]    [WS /ws] Initializing parameter handlers for new session
+2025-01-09 21:48:59,189 [INFO]    [WS /ws] Successfully set up handlers for new session
+2025-01-09 21:48:59,190 [INFO]    [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:48:59,190 [ERROR]    [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:48:59,192 [INFO]    Request: {'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500, 'process_time': '0.002s'}
+2025-01-09 21:49:07,375 [INFO]    [WS /ws] WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:49:09,279 [INFO]    [WS /ws] WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:49:09,279 [INFO]    [WS /ws] New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:49:09,292 [INFO]    [WS /ws] Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:49:09,293 [INFO]    [WS /ws] Initializing parameter handlers for new session
+2025-01-09 21:49:09,859 [INFO]    [WS /ws] Successfully set up handlers for new session
+2025-01-09 21:49:09,860 [INFO]    [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:49:09,860 [ERROR]    [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:49:09,862 [INFO]    Request: {'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500}
+2025-01-09 21:49:16,315 [INFO]    [GET /api/parameter-changes] Fetching recent parameter changes
+2025-01-09 21:49:16,320 [INFO]    [GET /api/parameter-changes] No recent parameter changes found
+2025-01-09 21:49:16,321 [INFO]    Request: {'method': 'GET', 'path': '/api/parameter-changes', 'status_code': 200}
+2025-01-09 21:50:08,692 [INFO]    [WS /ws] WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:50:10,271 [INFO]    [WS /ws] WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:50:10,271 [INFO]    [WS /ws] New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:50:10,278 [INFO]    [WS /ws] Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:50:10,279 [INFO]    [WS /ws] Initializing parameter handlers for new session
+2025-01-09 21:50:10,838 [INFO]    [WS /ws] Successfully set up handlers for new session
+2025-01-09 21:50:10,839 [INFO]    [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:50:10,839 [ERROR]    [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:50:10,841 [INFO]    Request: {'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500}
+2025-01-09 21:50:12,860 [INFO]    [WS /ws] WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:50:14,269 [INFO]    [WS /ws] WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:50:14,269 [INFO]    [WS /ws] New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:50:14,274 [INFO]    [WS /ws] Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:50:14,276 [INFO]    [WS /ws] Initializing parameter handlers for new session
+2025-01-09 21:50:14,838 [INFO]    [WS /ws] Successfully set up handlers for new session
+2025-01-09 21:50:14,839 [INFO]    [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:50:14,839 [ERROR]    [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:50:14,840 [INFO]    Request: {'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500}
+2025-01-09 21:50:16,358 [INFO]    [GET /api/parameter-changes] Fetching recent parameter changes
+2025-01-09 21:50:16,397 [INFO]    [GET /api/parameter-changes] No recent parameter changes found
+2025-01-09 21:50:16,400 [INFO]    Request: {'method': 'GET', 'path': '/api/parameter-changes', 'status_code': 200}
+2025-01-09 21:50:17,381 [INFO]    [WS /ws] WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:50:19,976 [INFO]    [WS /ws] WebSocket connection established for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:50:19,976 [INFO]    [WS /ws] New session started: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:50:19,981 [INFO]    [WS /ws] Creating new chat session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:50:19,982 [INFO]    [WS /ws] Initializing parameter handlers for new session
+2025-01-09 21:50:20,568 [INFO]    [WS /ws] Successfully set up handlers for new session
+2025-01-09 21:50:20,569 [INFO]    [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Fetching messages for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2
+2025-01-09 21:50:20,569 [ERROR]    [GET /api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages] Failed to fetch session messages: 'DBService' object has no attribute 'get_session'
+Traceback (most recent call last):
+  File "/Users/boris/Desktop/projects/live/backend/app/routes.py", line 129, in get_session_messages
+    session = db_service.get_session(session_id)
+              ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'DBService' object has no attribute 'get_session'. Did you mean: 'get_chat_session'?
+2025-01-09 21:50:20,570 [INFO]    Request: {'method': 'GET', 'path': '/api/session/e04decbd-2b36-4744-b3f7-f61cc613f7e2/messages', 'status_code': 500}
+2025-01-09 21:51:16,426 [INFO]    [GET /api/parameter-changes] Fetching recent parameter changes
+2025-01-09 21:51:16,474 [INFO]    [GET /api/parameter-changes] No recent parameter changes found
+2025-01-09 21:51:16,477 [INFO]    Request: {'method': 'GET', 'path': '/api/parameter-changes', 'status_code': 200}
+2025-01-09 21:51:39,342 [INFO]    [WS /ws] WebSocket disconnected for session: e04decbd-2b36-4744-b3f7-f61cc613f7e2

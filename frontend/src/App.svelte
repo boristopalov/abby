@@ -38,13 +38,15 @@
   let chatContainer = $state<HTMLElement | undefined>(undefined);
   let isModelThinking = $state(false);
 
+  let intervalId: number = $state(0);
+
   const parameterChanges = writable<ParameterChange[]>([]);
   const messages = writable<ChatMessage[]>([]);
   onMount(async () => {
     void connectWebSocket();
 
     // Poll every minute
-    const intervalId = setInterval(async () => {
+    intervalId = setInterval(async () => {
       const changes = await getRecentParameterChanges();
       if (changes) {
         parameterChanges.set(changes);
@@ -54,26 +56,65 @@
     const genreResponse = await fetchGenres();
     availableGenres = genreResponse.genres;
     activeGenre = genreResponse.defaultGenre;
-
-    onDestroy(() => {
-      clearInterval(intervalId);
-      if (ws) {
-        ws.close();
-      }
-    });
+  });
+  onDestroy(() => {
+    clearInterval(intervalId);
+    if (ws) {
+      ws.close();
+    }
   });
 
   async function connectWebSocket() {
     ws = new WebSocket(`ws://localhost:8000/ws?sessionId=${$activeSessionId}`);
 
     ws.onopen = async () => {
-      const msgs = await getSessionMessages($activeSessionId);
-      messages.set(msgs);
+      try {
+        const msgs = await getSessionMessages($activeSessionId);
+        messages.set(msgs);
+      } catch (e) {
+        console.error("Error fetching session messages:", e);
+      }
       isConnected = true;
       console.log(
         "Connected to WebSocket server with session:",
         $activeSessionId
       );
+    };
+
+    ws.onclose = () => {
+      isConnected = false;
+      console.log("Disconnected from WebSocket server");
+      setTimeout(connectWebSocket, 1000);
+    };
+
+    ws.onmessage = (event) => {
+      const data: WebSocketMessage = JSON.parse(event.data);
+      console.log("DATA:", data);
+      handleWebSocketMessage(data);
+    };
+  }
+
+  async function resetProject() {
+    if (ws) {
+      ws.onclose = null;
+      ws.close();
+      isConnected = false;
+    }
+    // Reset UI state
+    messages.set([]);
+    currentMessage = "";
+    parameterChanges.set([]);
+    loadingProgress = 0;
+    isModelThinking = false;
+
+    // Create new WebSocket connection with resetProject flag
+    ws = new WebSocket(
+      `ws://localhost:8000/ws?sessionId=${$activeSessionId}&resetProject=true`
+    );
+
+    ws.onopen = async () => {
+      isConnected = true;
+      console.log("Connected to WebSocket server with reset flag");
     };
 
     ws.onclose = () => {
@@ -241,9 +282,17 @@
         onclick={startNewSession}
         hidden={!isConnected}
         disabled={isLoading || !isConnected}
-        class="px-3 py-1 rounded-full text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+        class="px-3 py-1 rounded-lg text-sm bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         Start New Chat
+      </button>
+      <button
+        onclick={resetProject}
+        hidden={!isConnected}
+        disabled={isLoading || !isConnected}
+        class="px-3 py-1 rounded-lg text-sm bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
+        Reset Project
       </button>
       <div
         class={`px-3 py-1 rounded-full text-sm disabled:cursor-not-allowed ${
