@@ -86,8 +86,8 @@ def get_parameter_changes(db_service: Session = Depends(get_db_service)):
         if not changes:
             logger.info("[GET /api/parameter-changes] No recent parameter changes found")
             return {
-                "changes": [],
-                "message": "No recent parameter changes found"
+                "changes": None,
+                "message": None
             }
         logger.info(f"[GET /api/parameter-changes] Successfully fetched {len(changes)} parameter changes")
         return {"changes": changes}

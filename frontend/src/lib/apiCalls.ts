@@ -72,12 +72,13 @@ export async function setDefaultGenre(genre: string): Promise<boolean> {
 
 export async function getRecentParameterChanges(): Promise<ParameterChange[]> {
   const response = await fetch(`${SERVER_BASE_URI}/parameter-changes`);
-  const data: ParameterChange[] = await response.json();
+  const data = await response.json();
 
   if (!response.ok) {
     throw new Error("Failed to fetch parameter changes");
   }
-  return data;
+  console.log("RECENT CHANGES:", data.changes);
+  return data.changes as ParameterChange[];
 }
 
 export async function generateRandomGenre(): Promise<string> {

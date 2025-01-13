@@ -55,7 +55,7 @@ async def websocket_endpoint(
     if resetProject:
         logger.info(f"[WS /ws] Resetting project for session: {sessionId}")
         context.reset_session()
-        ableton_client.parameter_metadata = {}
+        ableton_client.reset_project()
 
     try:
         await websocket.accept()
@@ -85,6 +85,12 @@ async def websocket_endpoint(
             await websocket.send_json({
                 "type": "loading_progress",
                 "content": 100
+            })
+            # Send current tracks and devices from metadata
+            tracks_info = ableton_client.get_cached_tracks_devices()
+            await websocket.send_json({
+                "type": "tracks",
+                "content": tracks_info
             })
             logger.info("[WS /ws] Reusing existing parameter subscriptions")
 

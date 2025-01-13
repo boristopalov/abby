@@ -18,3 +18,11 @@ export interface ParameterChange {
   max: number;
   timestamp: number;
 }
+
+export interface Track {
+  id: string;
+  name: string;
+  devices: Array<{
+    name: string;
+  }>;
+}
