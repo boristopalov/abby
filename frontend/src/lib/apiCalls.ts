@@ -9,8 +9,8 @@ interface Genre {
 
 interface GenresResponse {
   genres: string[];
-  defaultGenre: string | null;
-  currentGenre: string | null;
+  defaultGenre: string | undefined;
+  currentGenre: string | undefined;
 }
 
 interface ParameterChange {
