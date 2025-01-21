@@ -6,7 +6,7 @@ This project started as a fork of [https://github.com/vroomai/live](https://gith
 
 ## Notes
 
-Abby is under active development, and is in the middle of a migration, with poor version control. Whoops! Give it a few days for a working version :) 
+Abby is under active development. There are bugs.
 
 ## Features
 
@@ -14,24 +14,21 @@ Abby is under active development, and is in the middle of a migration, with poor
 - **Chat Interface**: Chat with Abby about your music and ask for suggestions
 - **Listens with you**: Abby hears what you hear in Ableton and can provide detailed feedback on mix, arrangement, and musical elements
 
-## Installation
-
-TBD
-
 ## Usage
 
-TBD
+`cd frontend && npm install && npm run dev`
+`cd backend && pip install -r requirements.txt && fastapi dev app/main.py`
+
+The UI should be accessible at `localhost:5173`
 
 ## TODO
 
-- [] Complete Python backend migration
-- [] More direct support for
+- [] Listen to raw audio from tracks and provide feedback
 - [] Add more direct DAW integrations
-- [] Improve caching
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome. Please feel free to submit a Pull Request.
 
 ## License
 
