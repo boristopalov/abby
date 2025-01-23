@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 from typing import Optional, Union
 from dataclasses import dataclass
+from logger import logger
 
 AUDIO_DIR = "audio"
 
@@ -65,14 +66,14 @@ class AudioDeviceReader:
         """
         device_id = self.find_device_by_name(device_name)
         if device_id is None:
-            print(f"Device '{device_name}' not found!")
+            logger.info(f"Device '{device_name}' not found!")
             return None
         
-        print(f"Recording from device: {device_name} (ID: {device_id})...")
+        logger.info(f"Recording from device: {device_name} (ID: {device_id})...")
         
         # Get device info and channel count
         max_channels = self.get_device_channel_count(device_id)
-        print(f"Device has {max_channels} input channels")
+        logger.info(f"Device has {max_channels} input channels")
         
         # Record all channels first
         recording = sd.rec(
@@ -100,9 +101,9 @@ class AudioDeviceReader:
                 else:
                     raise ValueError(f"One or more channels in {channels} are out of range (0-{max_channels-1})")
         
-        print(f"Recording complete. Data shape: {recording.shape}")
-        print(f"Data type: {recording.dtype}")
-        print(f"Max value: {np.max(np.abs(recording))}")
+        logger.info(f"Recording complete. Data shape: {recording.shape}")
+        logger.info(f"Data type: {recording.dtype}")
+        logger.info(f"Max value: {np.max(np.abs(recording))}")
         
         # Save WAV file if requested
         wav_path = None
@@ -113,7 +114,7 @@ class AudioDeviceReader:
                 # Save to file
                 wav_path = Path(temp_wav_file.name)
                 wavfile.write(wav_path, samplerate, audio_data_int)
-                print(f"Saved recording to: {wav_path}")
+                logger.info(f"Saved recording to: {wav_path}")
         
         return AudioCapture(
             samples=recording,

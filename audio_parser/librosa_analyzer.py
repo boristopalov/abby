@@ -2,6 +2,7 @@ import librosa
 import numpy as np
 from dataclasses import dataclass
 from typing import List, Dict
+from logger import logger
 
 @dataclass
 class SpectralFeatures:
@@ -26,14 +27,57 @@ class DynamicFeatures:
     crest_factor: float  # Peak to RMS ratio
     dynamic_range: float # Difference between peak and valley
 
+EPSILON = 1e-8  # Small value to prevent division by zero
+SILENCE_THRESHOLD = -60  # dB threshold for silence detection
+
+def is_silent(y: np.ndarray) -> bool:
+    """Check if audio is effectively silent"""
+    if len(y) == 0:
+        return True
+        
+    # Convert to dB
+    db = 20 * np.log10(np.abs(y).mean() + EPSILON)
+    return db < SILENCE_THRESHOLD
+
 class AudioAnalyzer:
     def __init__(self, sample_rate: int = 44100):
         self.sr = sample_rate
+        logger.info(f"Initialized AudioAnalyzer with sample rate {sample_rate} Hz")
         
     def analyze_audio(self, y: np.ndarray) -> Dict:
         """
         Analyze audio signal and return comprehensive feature set
         """
+        logger.info(f"Analyzing audio data of shape {y.shape}")
+        
+        # Check for silence first
+        if is_silent(y):
+            logger.info("Audio signal is silent")
+            return {
+                "spectral": SpectralFeatures(
+                    centroid=0.0,
+                    bandwidth=0.0,
+                    rolloff=0.0,
+                    peaks=[],
+                    flatness=1.0,  # Perfect flatness for silence
+                    harmonic_percussive_ratio=0.0
+                ),
+                "temporal": TemporalFeatures(
+                    onset_count=0,
+                    onset_density=0.0,
+                    first_onset=0.0,
+                    mean_onset_strength=0.0
+                ),
+                "dynamic": DynamicFeatures(
+                    rms=0.0,
+                    peak=0.0,
+                    crest_factor=0.0,
+                    dynamic_range=0.0
+                ),
+                "duration": len(y) / self.sr,
+                "is_silent": True
+            }
+        
         spectral = self._analyze_spectral(y)
         temporal = self._analyze_temporal(y)
         dynamic = self._analyze_dynamics(y)
@@ -42,40 +86,69 @@ class AudioAnalyzer:
             "spectral": spectral,
             "temporal": temporal,
             "dynamic": dynamic,
-            "duration": len(y) / self.sr
+            "duration": len(y) / self.sr,
+            "is_silent": False
         }
     
     def _analyze_spectral(self, y: np.ndarray) -> SpectralFeatures:
         """Extract spectral features from the audio"""
+        logger.debug("Analyzing spectral features")
+        
         # Compute spectrogram
-        D = librosa.stft(y) # Fourier transform
+        D = librosa.stft(y)
         S = np.abs(D)
-
         
-        # Compute spectral features
-        centroid = float(np.mean(librosa.feature.spectral_centroid(y=y, sr=self.sr)))
-        bandwidth = float(np.mean(librosa.feature.spectral_bandwidth(y=y, sr=self.sr)))
-        rolloff = float(np.mean(librosa.feature.spectral_rolloff(y=y, sr=self.sr)))
-        flatness = float(np.mean(librosa.feature.spectral_flatness(y=y)))
+        # Compute spectral features with error handling
+        try:
+            centroid = float(np.mean(librosa.feature.spectral_centroid(y=y, sr=self.sr)))
+        except Exception as e:
+            logger.warning(f"Error computing spectral centroid: {e}")
+            centroid = 0.0
+            
+        try:
+            bandwidth = float(np.mean(librosa.feature.spectral_bandwidth(y=y, sr=self.sr)))
+        except Exception as e:
+            logger.warning(f"Error computing spectral bandwidth: {e}")
+            bandwidth = 0.0
+            
+        try:
+            rolloff = float(np.mean(librosa.feature.spectral_rolloff(y=y, sr=self.sr)))
+        except Exception as e:
+            logger.warning(f"Error computing spectral rolloff: {e}")
+            rolloff = 0.0
+            
+        try:
+            flatness = float(np.mean(librosa.feature.spectral_flatness(y=y)))
+        except Exception as e:
+            logger.warning(f"Error computing spectral flatness: {e}")
+            flatness = 0.0
         
-        # Find main frequency peaks
-        freqs = librosa.fft_frequencies(sr=self.sr)
-        magnitude_spectrum = np.abs(librosa.stft(y))
-        mean_spectrum = np.mean(magnitude_spectrum, axis=1)
-        peak_indices = librosa.util.peak_pick(mean_spectrum, 
-                                            pre_max=20, 
-                                            post_max=20, 
-                                            pre_avg=20, 
-                                            post_avg=20, 
-                                            delta=0.1, 
-                                            wait=20)
-        peaks = [freqs[i] for i in peak_indices][:5]  # Get top 5 peaks
+        # Find main frequency peaks with error handling
+        try:
+            freqs = librosa.fft_frequencies(sr=self.sr)
+            magnitude_spectrum = np.abs(librosa.stft(y))
+            mean_spectrum = np.mean(magnitude_spectrum, axis=1)
+            peak_indices = librosa.util.peak_pick(mean_spectrum, 
+                                                pre_max=20, 
+                                                post_max=20, 
+                                                pre_avg=20, 
+                                                post_avg=20, 
+                                                delta=0.1, 
+                                                wait=20)
+            peaks = [freqs[i] for i in peak_indices][:5]  # Get top 5 peaks
+        except Exception as e:
+            logger.warning(f"Error finding frequency peaks: {e}")
+            peaks = []
 
-        """Calculate the ratio between harmonic and percussive energy"""
-        harmonic, percussive = librosa.effects.hpss(y)
-        h_energy = np.sum(harmonic ** 2)
-        p_energy = np.sum(percussive ** 2)
-        hp_ratio = float(h_energy / p_energy) if p_energy > 0 else float('inf')
+        # Calculate harmonic/percussive ratio with error handling
+        try:
+            harmonic, percussive = librosa.effects.hpss(y)
+            h_energy = np.sum(harmonic ** 2)
+            p_energy = np.sum(percussive ** 2)
+            hp_ratio = float(h_energy / (p_energy + EPSILON))
+        except Exception as e:
+            logger.warning(f"Error computing harmonic/percussive ratio: {e}")
+            hp_ratio = 0.0
 
         return SpectralFeatures(
             centroid=centroid,
@@ -87,7 +160,10 @@ class AudioAnalyzer:
         )
     
     def _analyze_temporal(self, y: np.ndarray) -> TemporalFeatures:
-            """Extract temporal features from the audio"""
+        """Extract temporal features from the audio"""
+        logger.debug("Analyzing temporal features")
+        
+        try:
             # Onset detection
             onset_env = librosa.onset.onset_strength(y=y, sr=self.sr)
             onset_frames = librosa.onset.onset_detect(onset_envelope=onset_env, sr=self.sr)
@@ -96,26 +172,41 @@ class AudioAnalyzer:
             # Calculate summary statistics
             duration = len(y) / self.sr
             onset_count = len(onset_times)
-            onset_density = onset_count / duration if duration > 0 else 0
-            first_onset = onset_times[0] if onset_count > 0 else 0
+            onset_density = onset_count / (duration + EPSILON)
+            first_onset = onset_times[0] if onset_count > 0 else 0.0
             mean_onset_strength = float(np.mean(onset_env))
             
+        except Exception as e:
+            logger.warning(f"Error in temporal analysis: {e}")
+            onset_count = 0
+            onset_density = 0.0
+            first_onset = 0.0
+            mean_onset_strength = 0.0
             
-            return TemporalFeatures(
-                onset_count=onset_count,
-                onset_density=onset_density,
-                first_onset=first_onset,
-                mean_onset_strength=mean_onset_strength
-            )
-
+        return TemporalFeatures(
+            onset_count=onset_count,
+            onset_density=onset_density,
+            first_onset=first_onset,
+            mean_onset_strength=mean_onset_strength
+        )
     
     def _analyze_dynamics(self, y: np.ndarray) -> DynamicFeatures:
         """Extract dynamic features from the audio"""
-        rms = float(np.sqrt(np.mean(y**2)))
-        peak = float(np.max(np.abs(y)))
-        crest_factor = peak / (rms + 1e-8)  # Add small epsilon to avoid division by zero
-        dynamic_range = 20 * np.log10(peak / (rms + 1e-8))  # In dB
+        logger.debug("Analyzing dynamic features")
         
+        try:
+            rms = float(np.sqrt(np.mean(y**2)))
+            peak = float(np.max(np.abs(y)))
+            crest_factor = peak / (rms + EPSILON)
+            dynamic_range = 20 * np.log10((peak + EPSILON) / (rms + EPSILON))
+            
+        except Exception as e:
+            logger.warning(f"Error in dynamics analysis: {e}")
+            rms = 0.0
+            peak = 0.0
+            crest_factor = 0.0
+            dynamic_range = 0.0
+            
         return DynamicFeatures(
             rms=rms,
             peak=peak,
@@ -123,11 +214,16 @@ class AudioAnalyzer:
             dynamic_range=dynamic_range
         )
 
+
 def format_analysis_for_llm(analysis: Dict) -> str:
     """
     Convert analysis results into a natural language description
     that would be more useful for an LLM
     """
+    # Check if the audio was silent
+    if analysis.get("is_silent", False):
+        return "The audio appears to be silent, with no significant audio content detected."
+    
     spectral: SpectralFeatures = analysis['spectral']
     temporal: TemporalFeatures = analysis['temporal']
     dynamic: DynamicFeatures = analysis['dynamic']
@@ -149,7 +245,6 @@ def format_analysis_for_llm(analysis: Dict) -> str:
     else:
         description.append(f"The sound has a balanced harmonic/percussive ratio of {spectral.harmonic_percussive_ratio:.1f}.")
     
-    
     # Describe temporal characteristics
     description.append(f"The sound has {temporal.onset_count} distinct onsets occurring at a rate of {temporal.onset_density:.1f} per second, "
                       f"{'suggesting a busy/rhythmic pattern' if temporal.onset_density > 4 else 'indicating a sparse/sustained texture' if temporal.onset_density < 2 else 'with moderate rhythmic activity'}. "
@@ -165,7 +260,6 @@ def format_analysis_for_llm(analysis: Dict) -> str:
                       f"{'This suggests the sound might benefit from compression.' if dynamic.crest_factor > 8 else ''}"
                       f"{'The low crest factor indicates the sound is already heavily compressed.' if dynamic.crest_factor < 2 else ''}")
     
-
     return " ".join(description)
 
 # Example usage:
