@@ -3,6 +3,7 @@ export interface ChatMessage {
   isUser: boolean;
   timestamp?: number;
   type?: "text" | "function_call" | "error";
+  trackId?: number;
 }
 
 export interface ParameterChange {

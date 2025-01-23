@@ -3,9 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 
-from .db import get_db
 from .db.db_service import DBService, get_db_service
-from .chat import get_chat_context
 from .agent import get_agent
 from .logger import logger
 
@@ -25,38 +23,17 @@ def get_genres(db_service: DBService = Depends(get_db_service)) -> GenreResponse
         logger.info("[GET /api/genres] Fetching all genres")
         genres = db_service.get_genres()
         default_genre = db_service.get_default_genre()
-        context = get_chat_context()
         
         response = {
             "genres": [g.name for g in genres],
             "defaultGenre": default_genre.name if default_genre else None,
-            "currentGenre": context.current_genre['genre'] if context.current_genre else None
+            "currentGenre": genres[0].name
         }
         logger.info(f"[GET /api/genres] Successfully fetched genres: {response}")
-        return response
+        return GenreResponse(**response)
     except Exception as e:
         logger.error(f"[GET /api/genres] Failed to fetch genres: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch genres")
-
-@router.post("/genres/set-current")
-def set_current_genre(genre_req: GenreRequest, db_service: DBService = Depends(get_db_service)):
-    try:
-        logger.info(f"[POST /api/genres/set-current] Setting current genre to: {genre_req.genre}")
-        existing_genre = db_service.get_genre_by_name(genre_req.genre)
-        
-        if not existing_genre:
-            logger.warning(f"[POST /api/genres/set-current] Genre not found: {genre_req.genre}")
-            raise HTTPException(status_code=404, detail="Genre not found")
-            
-        context = get_chat_context()
-        context.set_current_genre(existing_genre.name, existing_genre.system_prompt)
-        logger.info(f"[POST /api/genres/set-current] Successfully set current genre to: {genre_req.genre}")
-        return {"success": True, "genre": genre_req.genre}
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        logger.error(f"[POST /api/genres/set-current] Failed to set current genre: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to set current genre")
 
 @router.post("/genres/set-default")
 def set_default_genre(genre_req: GenreRequest, db_service: DBService = Depends(get_db_service)):

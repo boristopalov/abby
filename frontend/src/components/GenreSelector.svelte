@@ -21,7 +21,8 @@
   onMount(async () => {
     const genreResponse = await fetchGenres();
     genres.availableGenres = genreResponse.genres;
-    genres.activeGenre = genreResponse.defaultGenre || "";
+    genres.activeGenre =
+      genreResponse.defaultGenre || genreResponse.currentGenre || "";
   });
 </script>
 

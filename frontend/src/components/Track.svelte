@@ -1,19 +1,16 @@
 <script lang="ts">
   import TrackContext from "./TrackContext.svelte";
-  import Chat from "./Chat.svelte";
-  import {
-    trackChats,
-    addTrackMessage,
-    initializeTrackChat,
-  } from "../lib/chatStore";
+  import { trackChats, initializeTrackChat } from "../lib/chatStore";
   import { wsStore } from "../lib/wsStore";
 
   let {
+    trackId,
     trackName,
     devices,
     isCollapsed = true,
     activeGenre,
   } = $props<{
+    trackId: number;
     trackName: string;
     devices: Array<{ name: string }>;
     isCollapsed?: boolean;
@@ -57,17 +54,13 @@
   }
 
   function handleQuickAction(action: string) {
-    const message = `[Track: ${trackName}] ${action}`;
-    wsStore.sendMessage(message);
-  }
-
-  function handleChat(message: string) {
-    addTrackMessage(trackName, {
-      text: message,
+    const payload = {
+      text: action,
       isUser: true,
       type: "text",
-    });
-    wsStore.sendMessage(`[Track: ${trackName}] ${message}`);
+      trackId: trackId,
+    };
+    wsStore.sendMessage(JSON.stringify(payload));
   }
 </script>
 
@@ -132,13 +125,6 @@
                 {/each}
               </div>
             </div>
-
-            <Chat
-              messages={trackMessages}
-              onSendMessage={handleChat}
-              {isCollapsed}
-              maxHeight="12rem"
-            />
           </div>
         </div>
       {/if}

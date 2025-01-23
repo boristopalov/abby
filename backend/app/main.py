@@ -98,12 +98,14 @@ async def websocket_endpoint(
         while True:
             data = await websocket.receive_json()
             msg = data.get("message")
+            logger.info(f"[WS] Received WS Data: {data}")
 
             if msg == "get-param-changes":
                 logger.info("[WS /ws] Processing parameter changes request")
                 changes_summary = ableton_client.get_recent_parameter_changes()
                 async for chunk in agent.process_message(
                     context,
+                    [],
                     {
                         "role": "user",
                         "content": json.dumps(changes_summary)
@@ -115,22 +117,19 @@ async def websocket_endpoint(
                     await asyncio.sleep(0)  # Give the event loop a chance to send the message
                 continue
 
-            if data.get("type") == "suggestion_response":
-                if data.get("response") == "yes":
-                    logger.info("[WS /ws] Processing suggestion confirmation")
-                    async for chunk in agent.process_message(
-                        context,
-                        {
-                            "role": "user",
-                            "content": "Yes, please make the suggestions you outlined."
-                        },
-                        db_service,
-                        ableton_client
-                    ):
-                        logger.info(f"[WS /ws] Message response: {chunk}")
-                        await websocket.send_json(chunk)
-                        await asyncio.sleep(0)  # Give the event loop a chance to send the message
-                continue
+
+            async for chunk in agent.process_message(
+                context,
+                {
+                    "role": "user",
+                    "content": msg.get("text")
+                },
+                db_service,
+                ableton_client
+            ):
+                logger.info(f"[WS /ws] Message response: {chunk}")
+                await websocket.send_json(chunk)
+                await asyncio.sleep(0)  # Give the event loop a chance to send the message
 
             logger.info(f"[WS /ws] Processing user message: {msg[:100]}...")  # Log first 100 chars of message
             async for chunk in agent.process_message(

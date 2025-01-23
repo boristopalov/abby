@@ -22,7 +22,12 @@
       onclick={() => setActiveTrack(track.id)}
       onkeydown={(e) => e.key === "Enter" && setActiveTrack(track.id)}
     >
-      <Track trackName={track.name} devices={track.devices} {activeGenre} />
+      <Track
+        trackId={track.id}
+        trackName={track.name}
+        devices={track.devices}
+        {activeGenre}
+      />
     </button>
   {/each}
 </div>

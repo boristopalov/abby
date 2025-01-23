@@ -16,6 +16,7 @@
     parameterChanges,
     genres,
   } from "./lib/state.svelte";
+  import type { ChatMessage } from "./types";
 
   let showParameterPanel = $state(true);
   let intervalId: number = $state(0);
@@ -84,12 +85,13 @@
           <Chat
             messages={$globalMessages}
             onSendMessage={(message) => {
+              const msg: ChatMessage = {
+                text: message,
+                isUser: true,
+                type: "text",
+              };
               if ($wsStore.isConnected) {
-                addGlobalMessage({
-                  text: message,
-                  isUser: true,
-                  type: "text",
-                });
+                addGlobalMessage(msg);
                 wsStore.sendMessage(message);
               }
             }}

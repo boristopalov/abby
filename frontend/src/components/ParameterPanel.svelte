@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { slide } from "svelte/transition";
-  import type { ParameterChange } from "../types";
+import { slide } from "svelte/transition";
+import type { ParameterChange } from "../types";
 
   export let parameterChanges: ParameterChange[];
   export let showParameterPanel: boolean;

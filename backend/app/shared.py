@@ -59,3 +59,13 @@ Remember to:
 - Keep arrangement dynamic and engaging
 """
 } 
+
+def format_prompt(genre, bpm, llm_generated_description, formatted_audio_analysis, existing_devices, user_prompt):
+  return f"""
+    Genre: {genre}
+    Project BPM: {bpm}
+    Track Description: {llm_generated_description}
+    Audio Analysis: {formatted_audio_analysis}
+    Existing Devices: {existing_devices}
+    User Request: {user_prompt}
+    """
