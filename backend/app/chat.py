@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import List, Optional
 
 from google.genai import types
 
@@ -16,7 +16,7 @@ class ChatContext:
 
     def add_message(self, message: types.Content) -> None:
         """Add a message to the context.
-        
+
         Args:
             message: A Gemini Content object containing the role and parts
                     (text parts or function calls/responses)
@@ -33,11 +33,12 @@ class ChatContext:
     def reset_session(self):
         self.handlers_initialized = False
         self.current_session_id = None
-        self.messages = None
+        self.messages = []
         self.handlers_loading = False
+
 
 chat_context = ChatContext()
 
+
 def get_chat_context() -> ChatContext:
     return chat_context
-    

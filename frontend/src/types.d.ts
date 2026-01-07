@@ -27,3 +27,9 @@ export interface Track {
     name: string;
   }>;
 }
+
+export interface ChatSession {
+  id: string;
+  name: string;
+  createdAt: number;
+}

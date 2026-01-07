@@ -1,4 +1,4 @@
-import { type ChatMessage } from "../types.d.ts";
+import { type ChatMessage, type ChatSession } from "../types.d.ts";
 
 // Import the types from the backend
 interface Genre {
@@ -104,4 +104,15 @@ export async function getSessionMessages(
 
   console.log("MESSAGES:", data.messages);
   return data.messages;
+}
+
+export async function getSessions(): Promise<ChatSession[]> {
+  const response = await fetch(`${SERVER_BASE_URI}/sessions`);
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch sessions");
+  }
+
+  return data.sessions;
 }

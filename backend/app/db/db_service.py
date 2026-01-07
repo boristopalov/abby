@@ -1,11 +1,13 @@
-from sqlalchemy.orm import Session
-from typing import List, Optional
 import time
+from typing import List, Optional
 
-from .models import ChatSession, Message, ParameterChange, Genre
-from ..shared import GENRE_SYSTEM_PROMPTS, TRIBAL_SCIFI_TECHNO
 from fastapi import Depends
+from sqlalchemy.orm import Session
+
+from ..shared import GENRE_SYSTEM_PROMPTS, TRIBAL_SCIFI_TECHNO
 from . import get_db
+from .models import ChatSession, Genre, Message, ParameterChange
+
 
 class DBService:
     def __init__(self, db: Session):
@@ -40,16 +42,19 @@ class DBService:
             text=message["text"],
             is_user=message["isUser"],
             type=message.get("type", "text"),
-            timestamp=timestamp
+            timestamp=timestamp,
         )
         self.db.add(db_message)
         self.db.commit()
         return db_message
 
     def get_messages(self, session_id: str) -> List[Message]:
-        return self.db.query(Message).filter(
-            Message.session_id == session_id
-        ).order_by(Message.timestamp.asc()).all()
+        return (
+            self.db.query(Message)
+            .filter(Message.session_id == session_id)
+            .order_by(Message.timestamp.asc())
+            .all()
+        )
 
     def add_parameter_change(self, change: dict) -> ParameterChange:
         db_change = ParameterChange(
@@ -63,21 +68,26 @@ class DBService:
             new_value=change["newValue"],
             min_value=change["min"],
             max_value=change["max"],
-            timestamp=change["timestamp"]
+            timestamp=change["timestamp"],
         )
         self.db.add(db_change)
         self.db.commit()
         return db_change
 
     def get_recent_parameter_changes(self, limit: int = 100) -> List[ParameterChange]:
-        return self.db.query(ParameterChange).order_by(
-            ParameterChange.timestamp.desc()
-        ).limit(limit).all()
+        return (
+            self.db.query(ParameterChange)
+            .order_by(ParameterChange.timestamp.desc())
+            .limit(limit)
+            .all()
+        )
 
-    def add_genre(self, name: str, system_prompt: str, is_default: bool = False) -> Genre:
+    def add_genre(
+        self, name: str, system_prompt: str, is_default: bool = False
+    ) -> Genre:
         if is_default:
-            self.db.query(Genre).filter(Genre.is_default == True).update({"is_default": False})
-        
+            self.db.query(Genre).filter(Genre.is_default).update({"is_default": False})
+
         db_genre = Genre(name=name, system_prompt=system_prompt, is_default=is_default)
         self.db.add(db_genre)
         self.db.commit()
@@ -87,10 +97,10 @@ class DBService:
         return self.db.query(Genre).all()
 
     def get_default_genre(self) -> Optional[Genre]:
-        return self.db.query(Genre).filter(Genre.is_default == True).first()
+        return self.db.query(Genre).filter(Genre.is_default).first()
 
     def set_default_genre(self, name: str) -> None:
-        self.db.query(Genre).filter(Genre.is_default == True).update({"is_default": False})
+        self.db.query(Genre).filter(Genre.is_default).update({"is_default": False})
         self.db.query(Genre).filter(Genre.name == name).update({"is_default": True})
         self.db.commit()
 
@@ -103,7 +113,8 @@ class DBService:
             return
 
         for name, prompt in GENRE_SYSTEM_PROMPTS.items():
-            self.add_genre(name, prompt, name == TRIBAL_SCIFI_TECHNO) 
+            self.add_genre(name, prompt, name == TRIBAL_SCIFI_TECHNO)
+
 
 def get_db_service(db: Session = Depends(get_db)) -> DBService:
-    return DBService(db) 
+    return DBService(db)
