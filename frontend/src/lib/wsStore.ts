@@ -6,7 +6,7 @@ import {
   clearAllMessages,
 } from "./chatStore.ts";
 import { getSessionMessages } from "./apiCalls.ts";
-import { loading, parameterChanges, tracks } from "./state.svelte.ts";
+import { loading, parameterChanges, tracks, projectState } from "./state.svelte.ts";
 import type { ParameterChange, Track } from "../types.d.ts";
 
 interface WebSocketState {
@@ -100,7 +100,16 @@ const createWebSocketStore = () => {
     subscribe,
     connect: () => {
       const sessionId = get(activeSessionId);
-      const ws = new WebSocket(`ws://localhost:8000/ws?sessionId=${sessionId}`);
+      const projectId = projectState.activeProjectId;
+
+      if (!projectId) {
+        console.warn("No project selected, cannot connect WebSocket");
+        return;
+      }
+
+      const ws = new WebSocket(
+        `ws://localhost:8000/ws?sessionId=${sessionId}&projectId=${projectId}`
+      );
 
       ws.onopen = async () => {
         try {
@@ -114,7 +123,10 @@ const createWebSocketStore = () => {
 
       ws.onclose = () => {
         update((state) => ({ ...state, isConnected: false, ws: null }));
-        setTimeout(() => store.connect(), 1000);
+        // Only auto-reconnect if we have a project selected
+        if (projectState.activeProjectId) {
+          setTimeout(() => store.connect(), 1000);
+        }
       };
 
       ws.onmessage = (event) => {
@@ -138,34 +150,6 @@ const createWebSocketStore = () => {
         update((state) => ({ ...state, isModelThinking: true }));
         state.ws.send(JSON.stringify({ message }));
       }
-    },
-
-    reset: () => {
-      const state = get(wsStore);
-      if (state.ws) {
-        state.ws.close();
-      }
-      clearAllMessages();
-      currentMessage = "";
-
-      const sessionId = get(activeSessionId);
-      const ws = new WebSocket(
-        `ws://localhost:8000/ws?sessionId=${sessionId}&resetProject=true`
-      );
-
-      ws.onopen = () => {
-        update((state) => ({ ...state, isConnected: true, ws }));
-      };
-
-      ws.onclose = () => {
-        update((state) => ({ ...state, isConnected: false, ws: null }));
-        setTimeout(() => store.connect(), 1000);
-      };
-
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        handleWebSocketMessage(data);
-      };
     },
   };
 

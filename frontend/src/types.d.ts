@@ -33,3 +33,9 @@ export interface ChatSession {
   name: string;
   createdAt: number;
 }
+
+export interface Project {
+  id: number;
+  name: string;
+  indexedAt: number;
+}

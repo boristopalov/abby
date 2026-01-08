@@ -1,4 +1,4 @@
-import { type ChatMessage, type ChatSession } from "../types.d.ts";
+import { type ChatMessage, type ChatSession, type Project } from "../types.d.ts";
 
 // Import the types from the backend
 interface Genre {
@@ -115,4 +115,60 @@ export async function getSessions(): Promise<ChatSession[]> {
   }
 
   return data.sessions;
+}
+
+// Project API calls
+
+export async function getProjects(): Promise<Project[]> {
+  const response = await fetch(`${SERVER_BASE_URI}/projects`);
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch projects");
+  }
+
+  return data.projects;
+}
+
+export async function createProject(name: string): Promise<Project> {
+  const response = await fetch(`${SERVER_BASE_URI}/projects`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name }),
+  });
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Failed to create project");
+  }
+
+  return data;
+}
+
+export async function deleteProject(projectId: number): Promise<void> {
+  const response = await fetch(`${SERVER_BASE_URI}/projects/${projectId}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to delete project");
+  }
+}
+
+export async function reindexProject(projectId: number): Promise<Project> {
+  const response = await fetch(
+    `${SERVER_BASE_URI}/projects/${projectId}/reindex`,
+    {
+      method: "POST",
+    }
+  );
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Failed to reindex project");
+  }
+
+  return data;
 }

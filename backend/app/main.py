@@ -43,7 +43,7 @@ async def root():
 async def websocket_endpoint(
     websocket: WebSocket,
     sessionId: Optional[str] = None,
-    resetProject: Optional[bool] = False,
+    projectId: Optional[int] = None,
     db_service: DBService = Depends(get_db_service),
     ableton_client: AbletonClient = Depends(get_ableton_client),
     agent: Agent = Depends(get_agent),
@@ -54,43 +54,51 @@ async def websocket_endpoint(
         await websocket.close(code=4000, reason="Session ID is required")
         return
 
-    if resetProject:
-        logger.info(f"[WS /ws] Resetting project for session: {sessionId}")
-        context.reset_session()
-        ableton_client.reset_project()
+    if not projectId:
+        logger.warning("[WS /ws] WebSocket connection attempt without project ID")
+        await websocket.close(code=4001, reason="Project ID is required")
+        return
+
+    # Verify project exists
+    project = db_service.get_project(projectId)
+    if not project:
+        logger.warning(f"[WS /ws] Project not found: {projectId}")
+        await websocket.close(code=4002, reason="Project not found")
+        return
 
     try:
         await websocket.accept()
         logger.info(
-            f"[WS /ws] WebSocket connection established for session: {sessionId}"
+            f"[WS /ws] WebSocket connected - session: {sessionId}, project: {project.name}"
         )
-
-        # Clear message history if this is a new session
-        if sessionId != context.current_session_id:
-            logger.info(f"[WS /ws] New session started: {sessionId}")
-            context.clear_messages()
-            context.current_session_id = sessionId
-            session = db_service.get_chat_session(sessionId)
-            if not session:
-                logger.info(f"[WS /ws] Creating new chat session: {sessionId}")
-                db_service.create_chat_session("Chat Session 123", sessionId)
 
         loop = asyncio.get_running_loop()
         ableton_client.set_websocket(websocket, loop)
 
-        if not context.handlers_initialized and not context.handlers_loading:
-            logger.info("[WS /ws] Initializing parameter handlers for new session")
-            context.handlers_loading = True
-            await ableton_client.subscribe_to_device_parameters()
-            context.handlers_initialized = True
-            context.handlers_loading = False
-            logger.info("[WS /ws] Successfully set up handlers for new session")
-        elif context.handlers_initialized:
-            await websocket.send_json({"type": "loading_progress", "content": 100})
-            # Send current tracks and devices from metadata
-            tracks_info = ableton_client.get_cached_tracks_devices()
-            await websocket.send_json({"type": "tracks", "content": tracks_info})
-            logger.info("[WS /ws] Reusing existing parameter subscriptions")
+        # Set up session
+        context.set_session(sessionId, projectId)
+
+        # Create chat session if needed
+        session = db_service.get_chat_session(sessionId)
+        if not session:
+            logger.info(f"[WS /ws] Creating new chat session: {sessionId}")
+            db_service.create_chat_session(f"Chat - {project.name}", sessionId)
+            db_service.link_session_to_project(sessionId, projectId)
+
+        # Load project structure from DB
+        await websocket.send_json({"type": "loading_progress", "content": 10})
+        project_data = db_service.load_project_structure(projectId)
+        logger.info(f"[WS /ws] Loaded {len(project_data)} tracks from DB")
+
+        # Send tracks info to frontend
+        tracks_for_frontend = db_service.get_project_tracks_for_frontend(projectId)
+        await websocket.send_json({"type": "tracks", "content": tracks_for_frontend})
+        await websocket.send_json({"type": "loading_progress", "content": 50})
+
+        # Subscribe to parameter changes
+        await ableton_client.subscribe_to_parameters(project_data)
+        await websocket.send_json({"type": "loading_progress", "content": 100})
+        logger.info("[WS /ws] Parameter subscriptions active")
 
         # Handle incoming messages
         while True:
@@ -108,9 +116,7 @@ async def websocket_endpoint(
                     ableton_client,
                 ):
                     await websocket.send_json(chunk)
-                    await asyncio.sleep(
-                        0
-                    )  # Give the event loop a chance to send the message
+                    await asyncio.sleep(0)
                 continue
 
             logger.info(f"[WS /ws] Processing user message: {msg[:100]}...")
@@ -122,7 +128,7 @@ async def websocket_endpoint(
             ):
                 logger.info(f"[WS /ws] Sending chunk: {chunk}")
                 await websocket.send_json(chunk)
-                await asyncio.sleep(0)  # Give the event loop a chance to send
+                await asyncio.sleep(0)
 
     except WebSocketDisconnect:
         logger.info(f"[WS /ws] WebSocket disconnected for session: {sessionId}")

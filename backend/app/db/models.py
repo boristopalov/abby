@@ -2,13 +2,62 @@ from sqlalchemy import Boolean, Column, Integer, String, Float, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from ..db import Base
 
+
+class Project(Base):
+    __tablename__ = "projects"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, unique=True, nullable=False)
+    indexed_at = Column(Integer, nullable=False)
+    tracks = relationship("Track", back_populates="project", cascade="all, delete-orphan")
+    sessions = relationship("ChatSession", back_populates="project")
+
+
+class Track(Base):
+    __tablename__ = "tracks"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    track_index = Column(Integer, nullable=False)
+    name = Column(String, nullable=False)
+    project = relationship("Project", back_populates="tracks")
+    devices = relationship("Device", back_populates="track", cascade="all, delete-orphan")
+
+
+class Device(Base):
+    __tablename__ = "devices"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    track_id = Column(Integer, ForeignKey("tracks.id", ondelete="CASCADE"), nullable=False)
+    device_index = Column(Integer, nullable=False)
+    name = Column(String, nullable=False)
+    class_name = Column(String, nullable=False)
+    track = relationship("Track", back_populates="devices")
+    parameters = relationship("Parameter", back_populates="device", cascade="all, delete-orphan")
+
+
+class Parameter(Base):
+    __tablename__ = "parameters"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    device_id = Column(Integer, ForeignKey("devices.id", ondelete="CASCADE"), nullable=False)
+    param_index = Column(Integer, nullable=False)
+    name = Column(String, nullable=False)
+    value = Column(Float, nullable=False)
+    min_value = Column(Float, nullable=False)
+    max_value = Column(Float, nullable=False)
+    device = relationship("Device", back_populates="parameters")
+
+
 class ChatSession(Base):
     __tablename__ = "sessions"
 
     id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
     created_at = Column(Integer, nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
     messages = relationship("Message", back_populates="session", cascade="all, delete-orphan")
+    project = relationship("Project", back_populates="sessions")
 
 class Message(Base):
     __tablename__ = "messages"
@@ -548,23 +597,24 @@ always focus on creating powerful, emotional drops while providing specific para
 
 def init_db():
     from ..db import Base, engine, SessionLocal
-    Base.metadata.drop_all(engine)
+    # Only create tables that don't exist (preserves data between restarts)
     Base.metadata.create_all(engine)
-    
+
     db = SessionLocal()
     try:
-        # Add initial genres
-        genres = [
-            Genre(
-                name=data["name"],
-                system_prompt=data["system_prompt"],
-                is_default=False
-            )
-            for data in INIT_DATA.values()
-        ]
-        
-        db.add_all(genres)
-        db.commit()
+        # Add initial genres only if none exist
+        existing_genres = db.query(Genre).first()
+        if not existing_genres:
+            genres = [
+                Genre(
+                    name=data["name"],
+                    system_prompt=data["system_prompt"],
+                    is_default=False
+                )
+                for data in INIT_DATA.values()
+            ]
+            db.add_all(genres)
+            db.commit()
     finally:
         db.close()
 

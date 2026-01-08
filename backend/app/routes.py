@@ -3,6 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from .ableton import AbletonClient, get_ableton_client
 from .db.db_service import DBService, get_db_service
 from .logger import logger
 
@@ -11,6 +12,16 @@ router = APIRouter()
 
 class GenreRequest(BaseModel):
     genre: str
+
+
+class CreateProjectRequest(BaseModel):
+    name: str
+
+
+class ProjectResponse(BaseModel):
+    id: int
+    name: str
+    indexedAt: int
 
 
 class GenreResponse(BaseModel):
@@ -190,3 +201,142 @@ def snake_to_camel(snake_str):
     """Converts a snake_case string to camelCase."""
     components = snake_str.split("_")
     return components[0] + "".join(x.title() for x in components[1:])
+
+
+# Project management routes
+
+
+@router.get("/projects")
+def get_projects(db_service: DBService = Depends(get_db_service)):
+    """List all projects."""
+    try:
+        logger.info("[GET /api/projects] Fetching all projects")
+        projects = db_service.get_all_projects()
+
+        project_list = [
+            {"id": p.id, "name": p.name, "indexedAt": p.indexed_at} for p in projects
+        ]
+
+        logger.info(f"[GET /api/projects] Found {len(project_list)} projects")
+        return {"projects": project_list}
+    except Exception as e:
+        logger.error(f"[GET /api/projects] Failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch projects")
+
+
+@router.post("/projects")
+async def create_project(
+    request: CreateProjectRequest,
+    db_service: DBService = Depends(get_db_service),
+    ableton_client: AbletonClient = Depends(get_ableton_client),
+):
+    """Create a new project and index it from Ableton."""
+    try:
+        logger.info(f"[POST /api/projects] Creating project: {request.name}")
+
+        # Check if project name already exists
+        existing = db_service.get_project_by_name(request.name)
+        if existing:
+            raise HTTPException(
+                status_code=400, detail=f"Project '{request.name}' already exists"
+            )
+
+        # Check if Ableton is running
+        is_live = await ableton_client.is_live()
+        if not is_live:
+            raise HTTPException(
+                status_code=503, detail="Cannot connect to Ableton Live"
+            )
+
+        # Create project in DB
+        project = db_service.create_project(request.name)
+        logger.info(f"[POST /api/projects] Created project with ID: {project.id}")
+
+        # Index project from Ableton
+        tracks_data = await ableton_client.index_project()
+        db_service.save_project_structure(project.id, tracks_data)
+        logger.info(
+            f"[POST /api/projects] Indexed {len(tracks_data)} tracks for project: {request.name}"
+        )
+
+        return {
+            "id": project.id,
+            "name": project.name,
+            "indexedAt": project.indexed_at,
+            "trackCount": len(tracks_data),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[POST /api/projects] Failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create project: {str(e)}")
+
+
+@router.delete("/projects/{project_id}")
+def delete_project(
+    project_id: int, db_service: DBService = Depends(get_db_service)
+):
+    """Delete a project and all its data."""
+    try:
+        logger.info(f"[DELETE /api/projects/{project_id}] Deleting project")
+
+        project = db_service.get_project(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        db_service.delete_project(project_id)
+        logger.info(f"[DELETE /api/projects/{project_id}] Project deleted")
+
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[DELETE /api/projects/{project_id}] Failed: {str(e)}", exc_info=True
+        )
+        raise HTTPException(status_code=500, detail="Failed to delete project")
+
+
+@router.post("/projects/{project_id}/reindex")
+async def reindex_project(
+    project_id: int,
+    db_service: DBService = Depends(get_db_service),
+    ableton_client: AbletonClient = Depends(get_ableton_client),
+):
+    """Re-index an existing project from Ableton."""
+    try:
+        logger.info(f"[POST /api/projects/{project_id}/reindex] Re-indexing project")
+
+        project = db_service.get_project(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # Check if Ableton is running
+        is_live = await ableton_client.is_live()
+        if not is_live:
+            raise HTTPException(
+                status_code=503, detail="Cannot connect to Ableton Live"
+            )
+
+        # Clear existing structure and re-index
+        db_service.clear_project_structure(project_id)
+        tracks_data = await ableton_client.index_project()
+        db_service.save_project_structure(project_id, tracks_data)
+        db_service.update_project_indexed_at(project_id)
+
+        logger.info(
+            f"[POST /api/projects/{project_id}/reindex] Re-indexed {len(tracks_data)} tracks"
+        )
+
+        return {
+            "id": project.id,
+            "name": project.name,
+            "trackCount": len(tracks_data),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[POST /api/projects/{project_id}/reindex] Failed: {str(e)}", exc_info=True
+        )
+        raise HTTPException(status_code=500, detail=f"Failed to re-index project: {str(e)}")

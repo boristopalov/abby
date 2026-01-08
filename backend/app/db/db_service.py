@@ -1,12 +1,21 @@
 import time
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from ..shared import GENRE_SYSTEM_PROMPTS, TRIBAL_SCIFI_TECHNO
 from . import get_db
-from .models import ChatSession, Genre, Message, ParameterChange
+from .models import (
+    ChatSession,
+    Device,
+    Genre,
+    Message,
+    Parameter,
+    ParameterChange,
+    Project,
+    Track,
+)
 
 
 class DBService:
@@ -114,6 +123,197 @@ class DBService:
 
         for name, prompt in GENRE_SYSTEM_PROMPTS.items():
             self.add_genre(name, prompt, name == TRIBAL_SCIFI_TECHNO)
+
+    # Project methods
+
+    def get_project(self, project_id: int) -> Optional[Project]:
+        return self.db.query(Project).filter(Project.id == project_id).first()
+
+    def get_project_by_name(self, name: str) -> Optional[Project]:
+        return self.db.query(Project).filter(Project.name == name).first()
+
+    def get_all_projects(self) -> List[Project]:
+        return self.db.query(Project).all()
+
+    def create_project(self, name: str) -> Project:
+        timestamp = int(time.time() * 1000)
+        project = Project(name=name, indexed_at=timestamp)
+        self.db.add(project)
+        self.db.commit()
+        self.db.refresh(project)
+        return project
+
+    def delete_project(self, project_id: int) -> None:
+        self.db.query(Project).filter(Project.id == project_id).delete()
+        self.db.commit()
+
+    def update_project_indexed_at(self, project_id: int) -> None:
+        timestamp = int(time.time() * 1000)
+        self.db.query(Project).filter(Project.id == project_id).update(
+            {"indexed_at": timestamp}
+        )
+        self.db.commit()
+
+    def clear_project_structure(self, project_id: int) -> None:
+        """Clear all tracks, devices, and parameters for a project (for re-indexing)."""
+        self.db.query(Track).filter(Track.project_id == project_id).delete()
+        self.db.commit()
+
+    def save_project_structure(
+        self, project_id: int, tracks_data: List[dict]
+    ) -> None:
+        """Save tracks, devices, and parameters for a project.
+
+        Args:
+            project_id: The project ID
+            tracks_data: List of track dicts with structure:
+                [{
+                    "id": track_index,
+                    "name": track_name,
+                    "devices": [{
+                        "id": device_index,
+                        "name": device_name,
+                        "class_name": class_name,
+                        "parameters": [{
+                            "id": param_index,
+                            "name": param_name,
+                            "value": value,
+                            "min": min_value,
+                            "max": max_value
+                        }]
+                    }]
+                }]
+        """
+        for track_data in tracks_data:
+            track = Track(
+                project_id=project_id,
+                track_index=track_data["id"],
+                name=track_data["name"],
+            )
+            self.db.add(track)
+            self.db.flush()  # Get the track ID
+
+            for device_data in track_data.get("devices", []):
+                device = Device(
+                    track_id=track.id,
+                    device_index=device_data["id"],
+                    name=device_data["name"],
+                    class_name=device_data["class_name"],
+                )
+                self.db.add(device)
+                self.db.flush()  # Get the device ID
+
+                for param_data in device_data.get("parameters", []):
+                    param = Parameter(
+                        device_id=device.id,
+                        param_index=param_data["id"],
+                        name=param_data["name"],
+                        value=param_data["value"],
+                        min_value=param_data["min"],
+                        max_value=param_data["max"],
+                    )
+                    self.db.add(param)
+
+        self.db.commit()
+
+    def load_project_structure(self, project_id: int) -> List[dict]:
+        """Load tracks, devices, and parameters for a project.
+
+        Returns:
+            List of track dicts with the same structure as save_project_structure
+        """
+        tracks = (
+            self.db.query(Track)
+            .filter(Track.project_id == project_id)
+            .order_by(Track.track_index)
+            .all()
+        )
+
+        result = []
+        for track in tracks:
+            track_data = {
+                "id": track.track_index,
+                "name": track.name,
+                "devices": [],
+            }
+
+            devices = (
+                self.db.query(Device)
+                .filter(Device.track_id == track.id)
+                .order_by(Device.device_index)
+                .all()
+            )
+
+            for device in devices:
+                device_data = {
+                    "id": device.device_index,
+                    "name": device.name,
+                    "class_name": device.class_name,
+                    "parameters": [],
+                }
+
+                params = (
+                    self.db.query(Parameter)
+                    .filter(Parameter.device_id == device.id)
+                    .order_by(Parameter.param_index)
+                    .all()
+                )
+
+                for param in params:
+                    device_data["parameters"].append({
+                        "id": param.param_index,
+                        "name": param.name,
+                        "value": param.value,
+                        "min": param.min_value,
+                        "max": param.max_value,
+                    })
+
+                track_data["devices"].append(device_data)
+
+            result.append(track_data)
+
+        return result
+
+    def link_session_to_project(self, session_id: str, project_id: int) -> None:
+        self.db.query(ChatSession).filter(ChatSession.id == session_id).update(
+            {"project_id": project_id}
+        )
+        self.db.commit()
+
+    def get_project_tracks_for_frontend(self, project_id: int) -> List[dict]:
+        """Load tracks and devices in frontend format (without parameters)."""
+        tracks = (
+            self.db.query(Track)
+            .filter(Track.project_id == project_id)
+            .order_by(Track.track_index)
+            .all()
+        )
+
+        result = []
+        for track in tracks:
+            track_data = {
+                "id": track.track_index,
+                "name": track.name,
+                "devices": [],
+            }
+
+            devices = (
+                self.db.query(Device)
+                .filter(Device.track_id == track.id)
+                .order_by(Device.device_index)
+                .all()
+            )
+
+            for device in devices:
+                track_data["devices"].append({
+                    "id": device.device_index,
+                    "name": device.name,
+                    "className": device.class_name,
+                })
+
+            result.append(track_data)
+
+        return result
 
 
 def get_db_service(db: Session = Depends(get_db)) -> DBService:

@@ -12,9 +12,10 @@ class CustomFormatter(logging.Formatter):
     bold_red = '\x1b[31;1m'
     reset = '\x1b[0m'
 
-    def __init__(self, fmt):
+    def __init__(self, fmt, datefmt=None):
         super().__init__()
         self.fmt = fmt
+        self.datefmt = datefmt
         self.FORMATS = {
             logging.DEBUG: self.grey + self.fmt + self.reset,
             logging.INFO: self.blue + self.fmt + self.reset,
@@ -25,17 +26,18 @@ class CustomFormatter(logging.Formatter):
 
     def format(self, record):
         log_fmt = self.FORMATS.get(record.levelno)
-        formatter = logging.Formatter(log_fmt)
+        formatter = logging.Formatter(log_fmt, datefmt=self.datefmt)
         return formatter.format(record)
 
 # Configure logging
 def setup_logger():
     # Create formatters
-    fmt = "     [%(levelname)s] %(message)s"
+    fmt = "     %(asctime)s [%(levelname)s] %(message)s"
+    datefmt = "%Y-%m-%d %H:%M:%S"
 
     # Set up handlers
     console_handler = logging.StreamHandler()
-    console_handler.setFormatter(CustomFormatter(fmt))
+    console_handler.setFormatter(CustomFormatter(fmt, datefmt))
 
     # Create logger
     logger = logging.getLogger(__name__)
