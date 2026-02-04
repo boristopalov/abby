@@ -1,7 +1,7 @@
 <script lang="ts">
   import { slide } from "svelte/transition";
   import { onMount } from "svelte";
-  import type { ChatSession } from "../types";
+  import type { ChatSession, Track } from "../types";
   import { getSessions } from "../lib/apiCalls";
   import { activeSessionId } from "../lib/sessionStore";
 
@@ -10,11 +10,13 @@
     onToggle,
     onSessionSelect,
     onNewChat,
+    tracks = [],
   } = $props<{
     showSessionPanel: boolean;
     onToggle: () => void;
     onSessionSelect: (sessionId: string) => void;
     onNewChat: () => void;
+    tracks?: Track[];
   }>();
 
   let sessions = $state<ChatSession[]>([]);
@@ -98,6 +100,21 @@
         {/each}
       {/if}
     </div>
+
+    {#if tracks.length > 0}
+      <div class="border-t border-gray-800">
+        <div class="p-3 border-b border-gray-800">
+          <h2 class="font-semibold text-sm text-gray-400 uppercase tracking-wide">Tracks</h2>
+        </div>
+        <div class="p-2 space-y-1 max-h-48 overflow-y-auto">
+          {#each tracks as track (track.id)}
+            <div class="px-3 py-2 text-sm text-gray-300 rounded-lg bg-gray-800/50">
+              {track.name}
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
   </div>
 {/if}
 

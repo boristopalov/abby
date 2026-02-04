@@ -1,0 +1,412 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		09ECC840579E7832FB7FD4CD /* WebSocketService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55E6DA5BC4B390044EA225FC /* WebSocketService.swift */; };
+		1787838FA1071F37ABF701AF /* AppViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98A6DA97B8296D50DC39D139 /* AppViewModel.swift */; };
+		55EB67C7E7B56B82613BA9A4 /* AudioPlaybackService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39FD20CDD98FE0BF69001F97 /* AudioPlaybackService.swift */; };
+		5884BFAFFEDF56532D921C0C /* AbbyBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B510646420951E346DBDBF8 /* AbbyBarApp.swift */; };
+		75F05168668524B254D0D399 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 01732BDA35A9EBB4A2BE00EA /* WhisperKit */; };
+		8F68E6D1DDCA225C02034BFA /* AudioCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6843C94279638486B57E3A2A /* AudioCaptureService.swift */; };
+		A1B2C3D4E5F60718293A4B5D /* MicrophoneButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* MicrophoneButton.swift */; };
+		BDD37C657F58EFC582AFBF70 /* TranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D6A31B6C51A9D3C0ADA93DA /* TranscriptionService.swift */; };
+		CAEB5FE1CFE1488B75B51DEA /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C73028C56306966EC1428EF /* AppState.swift */; };
+		D340AEAE3D60787E05171E22 /* AudioWebSocketService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0233390386CAEB6BC5B23A8 /* AudioWebSocketService.swift */; };
+		DD5C90879A05B6AB4D300746 /* ResponseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3727F88ADF54FB9D056A708F /* ResponseView.swift */; };
+		DDCF15722C1F681BCF8FE07A /* GrainyGradientCircle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A27455190ABE1C3C633F72F /* GrainyGradientCircle.swift */; };
+		F8C8F9180EF059AD8B0121E6 /* PopoverContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFAAC519FA1EFEA96AF119D /* PopoverContentView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		3727F88ADF54FB9D056A708F /* ResponseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseView.swift; sourceTree = "<group>"; };
+		39FD20CDD98FE0BF69001F97 /* AudioPlaybackService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlaybackService.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5C /* MicrophoneButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophoneButton.swift; sourceTree = "<group>"; };
+		3D6A31B6C51A9D3C0ADA93DA /* TranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionService.swift; sourceTree = "<group>"; };
+		55E6DA5BC4B390044EA225FC /* WebSocketService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSocketService.swift; sourceTree = "<group>"; };
+		5B510646420951E346DBDBF8 /* AbbyBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbbyBarApp.swift; sourceTree = "<group>"; };
+		6843C94279638486B57E3A2A /* AudioCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioCaptureService.swift; sourceTree = "<group>"; };
+		6C73028C56306966EC1428EF /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		75E151EFF0BC9D18AA73C8AD /* AbbyBar.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AbbyBar.entitlements; sourceTree = "<group>"; };
+		7A27455190ABE1C3C633F72F /* GrainyGradientCircle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrainyGradientCircle.swift; sourceTree = "<group>"; };
+		98A6DA97B8296D50DC39D139 /* AppViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppViewModel.swift; sourceTree = "<group>"; };
+		B954A3BD36596635F5553EB1 /* AbbyBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AbbyBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0233390386CAEB6BC5B23A8 /* AudioWebSocketService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioWebSocketService.swift; sourceTree = "<group>"; };
+		DCFAAC519FA1EFEA96AF119D /* PopoverContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverContentView.swift; sourceTree = "<group>"; };
+		E61DA1D9F01EE3DB052D4805 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AB79456EC7A4AC20A69FB575 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				75F05168668524B254D0D399 /* WhisperKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		4797D99C0B593970B5CA706F /* AbbyBar */ = {
+			isa = PBXGroup;
+			children = (
+				75E151EFF0BC9D18AA73C8AD /* AbbyBar.entitlements */,
+				5B510646420951E346DBDBF8 /* AbbyBarApp.swift */,
+				E61DA1D9F01EE3DB052D4805 /* Info.plist */,
+				665C436E91CF6279A586F6B8 /* Models */,
+				E9B47A489F150AA5FF52ED1D /* Services */,
+				50E33A74D9116AE53A796155 /* ViewModels */,
+				A5B0972D6237A26D3126445C /* Views */,
+			);
+			path = AbbyBar;
+			sourceTree = "<group>";
+		};
+		50E33A74D9116AE53A796155 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				98A6DA97B8296D50DC39D139 /* AppViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		665C436E91CF6279A586F6B8 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				6C73028C56306966EC1428EF /* AppState.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		7CD2489B63580CD8F83059E1 = {
+			isa = PBXGroup;
+			children = (
+				4797D99C0B593970B5CA706F /* AbbyBar */,
+				C8ABA4728B21D8CF1B24B819 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A5B0972D6237A26D3126445C /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				7A27455190ABE1C3C633F72F /* GrainyGradientCircle.swift */,
+				A1B2C3D4E5F60718293A4B5C /* MicrophoneButton.swift */,
+				DCFAAC519FA1EFEA96AF119D /* PopoverContentView.swift */,
+				3727F88ADF54FB9D056A708F /* ResponseView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		C8ABA4728B21D8CF1B24B819 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B954A3BD36596635F5553EB1 /* AbbyBar.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E9B47A489F150AA5FF52ED1D /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				6843C94279638486B57E3A2A /* AudioCaptureService.swift */,
+				39FD20CDD98FE0BF69001F97 /* AudioPlaybackService.swift */,
+				C0233390386CAEB6BC5B23A8 /* AudioWebSocketService.swift */,
+				3D6A31B6C51A9D3C0ADA93DA /* TranscriptionService.swift */,
+				55E6DA5BC4B390044EA225FC /* WebSocketService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1B52EB1B8D3542E43092746D /* AbbyBar */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 54D2311743782E2477E2D653 /* Build configuration list for PBXNativeTarget "AbbyBar" */;
+			buildPhases = (
+				1176886A2D4D3BF00F457FBA /* Sources */,
+				AB79456EC7A4AC20A69FB575 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AbbyBar;
+			packageProductDependencies = (
+				01732BDA35A9EBB4A2BE00EA /* WhisperKit */,
+			);
+			productName = AbbyBar;
+			productReference = B954A3BD36596635F5553EB1 /* AbbyBar.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F18713C226FADAFB6B45D782 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					1B52EB1B8D3542E43092746D = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 28362369DC5967E5566B6BC3 /* Build configuration list for PBXProject "AbbyBar" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 7CD2489B63580CD8F83059E1;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				EB2B4766CFB5B2577CC63B87 /* XCRemoteSwiftPackageReference "WhisperKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				1B52EB1B8D3542E43092746D /* AbbyBar */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1176886A2D4D3BF00F457FBA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5884BFAFFEDF56532D921C0C /* AbbyBarApp.swift in Sources */,
+				CAEB5FE1CFE1488B75B51DEA /* AppState.swift in Sources */,
+				1787838FA1071F37ABF701AF /* AppViewModel.swift in Sources */,
+				8F68E6D1DDCA225C02034BFA /* AudioCaptureService.swift in Sources */,
+				55EB67C7E7B56B82613BA9A4 /* AudioPlaybackService.swift in Sources */,
+				D340AEAE3D60787E05171E22 /* AudioWebSocketService.swift in Sources */,
+				DDCF15722C1F681BCF8FE07A /* GrainyGradientCircle.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5D /* MicrophoneButton.swift in Sources */,
+				F8C8F9180EF059AD8B0121E6 /* PopoverContentView.swift in Sources */,
+				DD5C90879A05B6AB4D300746 /* ResponseView.swift in Sources */,
+				BDD37C657F58EFC582AFBF70 /* TranscriptionService.swift in Sources */,
+				09ECC840579E7832FB7FD4CD /* WebSocketService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		56FA04121E6FED8BDCE57A27 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		5F090726536F21CCAFEC0299 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = AbbyBar/AbbyBar.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = AbbyBar/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.abby.menubar;
+				PRODUCT_NAME = AbbyBar;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		E37F7971F2190714ED682AB8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = AbbyBar/AbbyBar.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = AbbyBar/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.abby.menubar;
+				PRODUCT_NAME = AbbyBar;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		E531F3E553DA9100C90274FC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		28362369DC5967E5566B6BC3 /* Build configuration list for PBXProject "AbbyBar" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				56FA04121E6FED8BDCE57A27 /* Debug */,
+				E531F3E553DA9100C90274FC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		54D2311743782E2477E2D653 /* Build configuration list for PBXNativeTarget "AbbyBar" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E37F7971F2190714ED682AB8 /* Debug */,
+				5F090726536F21CCAFEC0299 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		EB2B4766CFB5B2577CC63B87 /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/argmaxinc/WhisperKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		01732BDA35A9EBB4A2BE00EA /* WhisperKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EB2B4766CFB5B2577CC63B87 /* XCRemoteSwiftPackageReference "WhisperKit" */;
+			productName = WhisperKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = F18713C226FADAFB6B45D782 /* Project object */;
+}

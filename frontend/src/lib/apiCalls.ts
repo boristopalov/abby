@@ -1,4 +1,8 @@
-import { type ChatMessage, type ChatSession, type Project } from "../types.d.ts";
+import {
+  type ChatMessage,
+  type ChatSession,
+  type Project,
+} from "../types.d.ts";
 
 // Import the types from the backend
 interface Genre {
@@ -70,8 +74,12 @@ export async function setDefaultGenre(genre: string): Promise<boolean> {
   return true;
 }
 
-export async function getRecentParameterChanges(): Promise<ParameterChange[]> {
-  const response = await fetch(`${SERVER_BASE_URI}/parameter-changes`);
+export async function getRecentParameterChanges(
+  projectId: number,
+): Promise<ParameterChange[]> {
+  const response = await fetch(
+    `${SERVER_BASE_URI}/parameter-changes?projectId=${projectId}&since=${Date.now()}`,
+  );
   const data = await response.json();
 
   if (!response.ok) {
@@ -91,10 +99,10 @@ export async function generateRandomGenre(): Promise<string> {
 }
 
 export async function getSessionMessages(
-  sessionId: string
+  sessionId: string,
 ): Promise<ChatMessage[]> {
   const response = await fetch(
-    `${SERVER_BASE_URI}/session/${sessionId}/messages`
+    `${SERVER_BASE_URI}/session/${sessionId}/messages`,
   );
   const data = await response.json();
 
@@ -162,7 +170,7 @@ export async function reindexProject(projectId: number): Promise<Project> {
     `${SERVER_BASE_URI}/projects/${projectId}/reindex`,
     {
       method: "POST",
-    }
+    },
   );
   const data = await response.json();
 

@@ -1,4 +1,4 @@
-from typing import List, Optional
+import time
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -6,12 +6,9 @@ from pydantic import BaseModel
 from .ableton import AbletonClient, get_ableton_client
 from .db.db_service import DBService, get_db_service
 from .logger import logger
+from .sync import get_sync_service
 
 router = APIRouter()
-
-
-class GenreRequest(BaseModel):
-    genre: str
 
 
 class CreateProjectRequest(BaseModel):
@@ -24,79 +21,43 @@ class ProjectResponse(BaseModel):
     indexedAt: int
 
 
-class GenreResponse(BaseModel):
-    genres: List[str]
-    defaultGenre: Optional[str]
-    currentGenre: Optional[str]
-
-
-@router.get("/genres")
-def get_genres(db_service: DBService = Depends(get_db_service)) -> GenreResponse:
-    try:
-        logger.info("[GET /api/genres] Fetching all genres")
-        genres = db_service.get_genres()
-        default_genre = db_service.get_default_genre()
-
-        response = {
-            "genres": [g.name for g in genres],
-            "defaultGenre": default_genre.name if default_genre else None,
-            "currentGenre": genres[0].name,
-        }
-        logger.info(f"[GET /api/genres] Successfully fetched genres: {response}")
-        return GenreResponse(**response)
-    except Exception as e:
-        logger.error(
-            f"[GET /api/genres] Failed to fetch genres: {str(e)}", exc_info=True
-        )
-        raise HTTPException(status_code=500, detail="Failed to fetch genres")
-
-
-@router.post("/genres/set-default")
-def set_default_genre(
-    genre_req: GenreRequest, db_service: DBService = Depends(get_db_service)
-):
-    try:
-        logger.info(
-            f"[POST /api/genres/set-default] Setting default genre to: {genre_req.genre}"
-        )
-        existing_genre = db_service.get_genre_by_name(genre_req.genre)
-
-        if not existing_genre:
-            logger.warning(
-                f"[POST /api/genres/set-default] Genre not found: {genre_req.genre}"
-            )
-            raise HTTPException(status_code=404, detail="Genre not found")
-
-        db_service.set_default_genre(genre_req.genre)
-        logger.info(
-            f"[POST /api/genres/set-default] Successfully set default genre to: {genre_req.genre}"
-        )
-        return {"success": True, "genre": genre_req.genre}
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        logger.error(
-            f"[POST /api/genres/set-default] Failed to set default genre: {str(e)}",
-            exc_info=True,
-        )
-        raise HTTPException(status_code=500, detail="Failed to set default genre")
-
-
 @router.get("/parameter-changes")
-def get_parameter_changes(db_service: DBService = Depends(get_db_service)):
+async def get_parameter_changes(
+    projectId: int,
+    since: int = 0,
+    db_service: DBService = Depends(get_db_service),
+):
+    """Get parameter changes for a project since a given timestamp.
+
+    Args:
+        projectId: The project ID
+        since: Unix timestamp in milliseconds. Returns changes after this time.
+               Default 0 returns all changes.
+
+    Returns:
+        {"changes": [...], "timestamp": current_timestamp}
+        The returned timestamp can be used as 'since' in the next request.
+    """
     try:
-        logger.info("[GET /api/parameter-changes] Fetching recent parameter changes")
-        changes = db_service.get_recent_parameter_changes()
+        # Verify project exists
+        project = db_service.get_project(projectId)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # Query DB for changes since timestamp
+        changes = db_service.get_parameter_changes_since(projectId, since)
+        current_timestamp = int(time.time() * 1000)
 
         if not changes:
-            logger.info(
-                "[GET /api/parameter-changes] No recent parameter changes found"
-            )
-            return {"changes": None, "message": None}
+            logger.debug("[GET /api/parameter-changes] No parameter changes found")
+            return {"changes": [], "timestamp": current_timestamp}
+
         logger.info(
-            f"[GET /api/parameter-changes] Successfully fetched {len(changes)} parameter changes"
+            f"[GET /api/parameter-changes] Found {len(changes)} parameter changes"
         )
-        return {"changes": changes}
+        return {"changes": changes, "timestamp": current_timestamp}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(
             f"[GET /api/parameter-changes] Failed to fetch parameter changes: {str(e)}",
@@ -117,45 +78,15 @@ def get_sessions(db_service: DBService = Depends(get_db_service)):
             reverse=True,
         )
 
-        logger.info(f"[GET /api/sessions] Successfully fetched {len(session_list)} sessions")
+        logger.info(
+            f"[GET /api/sessions] Successfully fetched {len(session_list)} sessions"
+        )
         return {"sessions": session_list}
     except Exception as e:
         logger.error(
             f"[GET /api/sessions] Failed to fetch sessions: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail="Failed to fetch sessions")
-
-
-# @router.get("/random-genre")
-# def get_random_genre(
-#     db_service: DBService = Depends(get_db_service), agent=Depends(get_agent)
-# ):
-#     try:
-#         logger.info("[GET /api/random-genre] Generating random genre")
-#         genre_name, prompt = agent.generate_random_genre()
-#         if not genre_name:
-#             logger.error(
-#                 "[GET /api/random-genre] Failed to generate genre name - received empty response"
-#             )
-#             raise HTTPException(status_code=500, detail="Failed to generate genre name")
-
-#         logger.info(
-#             f"[GET /api/random-genre] Adding new genre to database: {genre_name}"
-#         )
-#         db_service.add_genre(genre_name, prompt)
-
-#         logger.info(
-#             f"[GET /api/random-genre] Successfully generated and added random genre: {genre_name}"
-#         )
-#         return {"success": True, "genre": genre_name, "systemPrompt": prompt}
-#     except HTTPException as e:
-#         raise e
-#     except Exception as e:
-#         logger.error(
-#             f"[GET /api/random-genre] Failed to generate random genre: {str(e)}",
-#             exc_info=True,
-#         )
-#         raise HTTPException(status_code=500, detail="Failed to generate random genre")
 
 
 @router.get("/session/{session_id}/messages")
@@ -253,28 +184,33 @@ async def create_project(
         logger.info(f"[POST /api/projects] Created project with ID: {project.id}")
 
         # Index project from Ableton
-        tracks_data = await ableton_client.index_project()
-        db_service.save_project_structure(project.id, tracks_data)
+        project_data = await ableton_client.index_project()
+        db_service.save_song_context(project.id, project_data["song_context"])
+        db_service.save_project_structure(project.id, project_data["tracks"])
         logger.info(
-            f"[POST /api/projects] Indexed {len(tracks_data)} tracks for project: {request.name}"
+            f"[POST /api/projects] Indexed {len(project_data['tracks'])} tracks for project: {request.name}"
         )
 
         return {
             "id": project.id,
             "name": project.name,
             "indexedAt": project.indexed_at,
-            "trackCount": len(tracks_data),
+            "trackCount": len(project_data["tracks"]),
         }
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"[POST /api/projects] Failed: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to create project: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create project: {str(e)}"
+        )
 
 
 @router.delete("/projects/{project_id}")
 def delete_project(
-    project_id: int, db_service: DBService = Depends(get_db_service)
+    project_id: int,
+    db_service: DBService = Depends(get_db_service),
+    ableton_client: AbletonClient = Depends(get_ableton_client),
 ):
     """Delete a project and all its data."""
     try:
@@ -283,6 +219,11 @@ def delete_project(
         project = db_service.get_project(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
+
+        # Stop sync listeners if this project is being synced
+        sync_service = get_sync_service(ableton_client)
+        if sync_service.active_project_id == project_id:
+            sync_service.stop_listeners()
 
         db_service.delete_project(project_id)
         logger.info(f"[DELETE /api/projects/{project_id}] Project deleted")
@@ -318,20 +259,28 @@ async def reindex_project(
                 status_code=503, detail="Cannot connect to Ableton Live"
             )
 
+        # Stop existing sync listeners before re-indexing
+        sync_service = get_sync_service(ableton_client)
+        sync_service.stop_listeners()
+
         # Clear existing structure and re-index
         db_service.clear_project_structure(project_id)
-        tracks_data = await ableton_client.index_project()
-        db_service.save_project_structure(project_id, tracks_data)
+        project_data = await ableton_client.index_project()
+        db_service.save_song_context(project_id, project_data["song_context"])
+        db_service.save_project_structure(project_id, project_data["tracks"])
         db_service.update_project_indexed_at(project_id)
 
         logger.info(
-            f"[POST /api/projects/{project_id}/reindex] Re-indexed {len(tracks_data)} tracks"
+            f"[POST /api/projects/{project_id}/reindex] Re-indexed {len(project_data['tracks'])} tracks"
         )
+
+        # Start sync listeners for the re-indexed project
+        sync_service.start_listeners(project_id, project_data["tracks"])
 
         return {
             "id": project.id,
             "name": project.name,
-            "trackCount": len(tracks_data),
+            "trackCount": len(project_data["tracks"]),
         }
     except HTTPException:
         raise
@@ -339,4 +288,6 @@ async def reindex_project(
         logger.error(
             f"[POST /api/projects/{project_id}/reindex] Failed: {str(e)}", exc_info=True
         )
-        raise HTTPException(status_code=500, detail=f"Failed to re-index project: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to re-index project: {str(e)}"
+        )

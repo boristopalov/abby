@@ -1,22 +1,16 @@
 <script lang="ts">
   import type { ChatMessage, Track } from "../types";
-  import { slide } from "svelte/transition";
   import { tracks } from "../lib/state.svelte";
 
   let {
     messages = [],
     onSendMessage,
-    isCollapsed = true,
-    maxHeight = "12rem", // default height for track chats
   } = $props<{
     messages: ChatMessage[];
     onSendMessage: (message: string) => void;
-    isCollapsed?: boolean;
-    maxHeight?: string;
   }>();
 
   let chatInput = $state("");
-  let inputRef: HTMLInputElement;
   let messagesContainer: HTMLDivElement | undefined = $state(undefined);
   let isSelectingTrack = $state(false);
   let selectedTracks = $state<Track[]>([]);
@@ -68,7 +62,6 @@
       isSelectingTrack = true;
     } else if (event.key === "Escape") {
       isSelectingTrack = false;
-      isCollapsed = true;
     }
   }
 
@@ -78,13 +71,6 @@
       isSelectingTrack = false;
     }
   });
-
-  function handleClickOutside(event: MouseEvent) {
-    if (!inputRef.contains(event.target as Node)) {
-      isCollapsed = true;
-      isSelectingTrack = false;
-    }
-  }
 
   function selectTrack(track: Track) {
     if (!selectedTracks.find((t) => t.id === track.id)) {
@@ -107,51 +93,40 @@
     selectedTracks = selectedTracks.filter((t) => t.id !== trackId);
   }
 
+  // Scroll to bottom when new messages arrive
   $effect(() => {
-    if (!isCollapsed) {
-      document.addEventListener("click", handleClickOutside);
-      return () => document.removeEventListener("click", handleClickOutside);
-    }
-  });
-
-  // Scroll to bottom when new messages arrive or chat opens
-  $effect(() => {
-    if (!isCollapsed && messagesContainer) {
+    if (messagesContainer && messages.length > 0) {
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
   });
 </script>
 
-<div class="flex flex-col">
-  <div class="relative">
-    <div class="relative flex-1">
-      {#if !isCollapsed}
-        <div class="absolute bottom-full w-full">
-          <div
-            bind:this={messagesContainer}
-            class="bg-gray-800/100 rounded-t-lg w-full overflow-y-auto p-3 border-x border-t border-gray-700 space-y-2"
-            style="max-height: {maxHeight}"
-          >
-            {#each messages as message}
-              <div
-                class="flex {message.isUser ? 'justify-end' : 'justify-start'}"
-              >
-                <div
-                  class={`max-w-[85%] break-words ${
-                    message.isUser
-                      ? "bg-blue-500 text-white rounded-2xl rounded-tr-sm"
-                      : "bg-gray-700 text-gray-100 rounded-2xl rounded-tl-sm"
-                  } px-4 py-2 text-sm`}
-                >
-                  {@html message.text}
-                </div>
-              </div>
-            {/each}
-          </div>
+<div class="flex flex-col h-full">
+  <!-- Messages area -->
+  <div
+    bind:this={messagesContainer}
+    class="flex-1 overflow-y-auto p-3 space-y-2"
+  >
+    {#each messages as message}
+      <div
+        class="flex {message.isUser ? 'justify-end' : 'justify-start'}"
+      >
+        <div
+          class={`max-w-[85%] break-words ${
+            message.isUser
+              ? "bg-blue-500 text-white rounded-2xl rounded-tr-sm"
+              : "bg-gray-700 text-gray-100 rounded-2xl rounded-tl-sm"
+          } px-4 py-2 text-sm`}
+        >
+          {@html message.text}
         </div>
-      {/if}
+      </div>
+    {/each}
+  </div>
 
-      <div class="relative">
+  <!-- Input area -->
+  <div class="border-t border-gray-700 p-3">
+    <div class="relative">
         {#if selectedTracks.length > 0}
           <div
             class="absolute bottom-full left-0 right-0 flex flex-wrap gap-1.5 p-2 bg-gray-800 border-x border-t border-gray-700 rounded-t"
@@ -185,55 +160,46 @@
         {/if}
 
         {#if isSelectingTrack}
-          <div
-            class="absolute bottom-full left-0 right-0 bg-gray-800 border border-gray-700 rounded-t-lg shadow-lg max-h-48 overflow-y-auto {selectedTracks.length >
-            0
-              ? 'mb-10'
-              : ''}"
-          >
-            {#each filteredTracks as track}
-              <button
-                onclick={() => selectTrack(track)}
-                class="w-full px-4 py-2 text-left text-sm hover:bg-gray-700 text-gray-200"
-              >
-                {track.name}
-              </button>
-            {/each}
-          </div>
-        {/if}
-
-        <input
-          bind:this={inputRef}
-          type="text"
-          bind:value={chatInput}
-          onkeydown={handleKeyPress}
-          onfocus={() => (isCollapsed = false)}
-          onclick={() => (isCollapsed = false)}
-          placeholder="Send a message... (Use # to tag tracks)"
-          class="w-full {!isCollapsed || selectedTracks.length > 0 || chatInput
-            ? 'bg-gray-800 rounded-t-none border-x border-b'
-            : 'bg-gray-800/50 rounded-lg'} border-gray-700 px-4 py-2 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-        />
-
-        <button
-          onclick={handleSubmit}
-          class="absolute right-2 top-1/2 -translate-y-1/2 text-blue-400 hover:text-blue-300"
-          aria-label="Send message"
+        <div
+          class="absolute bottom-full left-0 right-0 bg-gray-800 border border-gray-700 rounded-t-lg shadow-lg max-h-48 overflow-y-auto {selectedTracks.length > 0 ? 'mb-10' : ''}"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-5 w-5"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z"
-              clip-rule="evenodd"
-            />
-          </svg>
-        </button>
-      </div>
+          {#each filteredTracks as track}
+            <button
+              onclick={() => selectTrack(track)}
+              class="w-full px-4 py-2 text-left text-sm hover:bg-gray-700 text-gray-200"
+            >
+              {track.name}
+            </button>
+          {/each}
+        </div>
+      {/if}
+
+      <input
+        type="text"
+        bind:value={chatInput}
+        onkeydown={handleKeyPress}
+        placeholder="Send a message... (Use # to tag tracks)"
+        class="w-full bg-gray-800 rounded-lg border border-gray-700 px-4 py-2 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+      />
+
+      <button
+        onclick={handleSubmit}
+        class="absolute right-2 top-1/2 -translate-y-1/2 text-blue-400 hover:text-blue-300"
+        aria-label="Send message"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-5 w-5"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </button>
     </div>
   </div>
 </div>
