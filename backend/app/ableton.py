@@ -172,6 +172,19 @@ class AbletonClient:
                     logger.error(f"[ABLETON] Max retries reached for {path}, giving up")
                     raise
 
+    async def get_num_sends(self, track_id: int, max_sends: int = 12) -> int:
+        """Get the number of sends for a track by probing.
+
+        AbletonOSC doesn't have a num_sends endpoint, so we probe by
+        trying to query sends until we get an error.
+        """
+        for i in range(max_sends):
+            try:
+                self.client.query("/live/track/get/send", [track_id, i], timeout=1.0)
+            except Exception:
+                return i
+        return max_sends
+
     async def get_track_name(self, track_id: int) -> str:
         """Get track name by ID."""
         result = await self.query_with_retry(
@@ -486,16 +499,16 @@ class AbletonClient:
         )
         num_tracks_result = await self.query_with_retry("/live/song/get/num_tracks")
 
-        # Get number of return tracks by querying num_sends on track 0
+        # Get number of return tracks by probing sends on track 0
         # (each track has one send per return track)
-        num_sends_result = await self.query_with_retry("/live/track/get/num_sends", [0])
+        num_sends = await self.get_num_sends(0)
 
         return {
             "tempo": float(tempo_result[0]),
             "time_sig_numerator": int(numerator_result[0]),
             "time_sig_denominator": int(denominator_result[0]),
             "num_tracks": int(num_tracks_result[0]),
-            "num_returns": int(num_sends_result[1]),  # [track_id, num_sends]
+            "num_returns": num_sends,
         }
 
     async def get_track_mixer_state(self, track_id: int) -> dict:
@@ -533,10 +546,7 @@ class AbletonClient:
         )
 
         # Get number of sends to know how many return tracks exist
-        num_sends_result = await self.query_with_retry(
-            "/live/track/get/num_sends", [track_id]
-        )
-        num_sends = int(num_sends_result[1])
+        num_sends = await self.get_num_sends(track_id)
 
         # Query each send level
         sends = []
