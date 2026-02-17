@@ -58,10 +58,18 @@ Remember to:
 - Use automation for evolving textures
 - Keep arrangement dynamic and engaging
 """
-} 
+}
 
-def format_prompt(genre, bpm, llm_generated_description, formatted_audio_analysis, existing_devices, user_prompt):
-  return f"""
+
+def format_prompt(
+    genre,
+    bpm,
+    llm_generated_description,
+    formatted_audio_analysis,
+    existing_devices,
+    user_prompt,
+):
+    return f"""
     Genre: {genre}
     Project BPM: {bpm}
     Track Description: {llm_generated_description}
