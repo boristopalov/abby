@@ -1,7 +1,6 @@
 import os
-import re
 from functools import lru_cache
-from typing import Any, AsyncGenerator, Dict, List, Tuple
+from typing import Any, AsyncGenerator, Dict, List
 
 from google.genai import Client, types
 from pydantic import BaseModel
@@ -9,17 +8,15 @@ from pydantic import BaseModel
 from .ableton import (
     AbletonClient,
     format_bar_length,
-    format_device_params,
     format_device_params_from_db,
     format_device_summary,
     pan_to_string,
     pitch_to_note_name,
     volume_to_db,
 )
-from .chat import ChatContext, get_chat_context
+from .chat import ChatContext
 from .db.db_service import DBService
 from .logger import logger
-from .shared import GENRE_PROMPT, GENRE_SYSTEM_PROMPTS
 
 SYSTEM_PROMPT = """You are an assistant that helps users with Ableton Live projects. You can view and modify device parameters, and analyze tracks for mixing and creative feedback.
 
