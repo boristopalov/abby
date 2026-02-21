@@ -81,6 +81,10 @@ When working on the frontend:
 - No component library — all UI is custom Tailwind utility classes
 - Keep styling consistent with existing components when adding new UI
 
+## Project Management
+
+**ClickUp** is the task tracker for this project. A ClickUp MCP is available, so you can create tasks, search existing ones, log bugs, and manage work directly from the chat — no need to ask explicitly. When bugs, TODOs, or feature requests come up naturally during development, you can offer to log them in ClickUp.
+
 ## Guidance
 
 ### Must do
