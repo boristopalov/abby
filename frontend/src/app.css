@@ -2,30 +2,65 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Atelier Design Tokens ─────────────────────────────────────── */
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  /* Color palette */
+  --bg:            #F7F3EE;
+  --surface:       #FDFAF6;
+  --surface-warm:  #F5EFE8;
+  --accent:        #C4714A;
+  --accent-light:  rgba(196, 113, 74, 0.10);
+  --accent-mid:    rgba(196, 113, 74, 0.18);
+  --sage:          #7A9E7E;
+  --sage-light:    rgba(122, 158, 126, 0.12);
+  --ink:           #1C1A18;
+  --ink-2:         #7A6F66;
+  --ink-3:         #A89E95;
+  --border:        #DDD5C8;
+  --border-light:  #EDE7DF;
+
+  /* Shadows — warm-toned, pressed-paper feel */
+  --shadow-sm:  1px 2px 8px rgba(100, 70, 40, 0.06);
+  --shadow:     2px 4px 12px rgba(100, 70, 40, 0.08);
+  --shadow-md:  3px 8px 24px rgba(100, 70, 40, 0.12);
+
+  /* Typography */
+  --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-body:  'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --font-mono:  'Courier Prime', 'Courier New', Courier, monospace;
+
+  /* Shape */
+  --radius:    6px;
+  --radius-lg: 10px;
+
+  /* Global */
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.7;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
+  color-scheme: light;
+  color: var(--ink);
+  background-color: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* ── Paper Grain Overlay ─────────────────────────────────────────
+   SVG feTurbulence at very low opacity simulates paper texture.   */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
 }
+
+/* ── Custom Scrollbars ───────────────────────────────────────── */
+::-webkit-scrollbar         { width: 5px; height: 5px; }
+::-webkit-scrollbar-track   { background: transparent; }
+::-webkit-scrollbar-thumb   { background-color: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--accent); opacity: 0.7; }

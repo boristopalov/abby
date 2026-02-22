@@ -8,49 +8,39 @@ import type { ParameterChange } from "../types";
 </script>
 
 {#if showParameterPanel}
-  <div
-    class="w-80 border-l border-gray-800 bg-gray-900 flex flex-col overflow-hidden shrink-0"
+  <aside
+    class="param-panel"
     in:slide={{ axis: "x" }}
     out:slide={{ axis: "x" }}
   >
-    <div class="p-3 border-b border-gray-800 flex justify-between items-center">
-      <h2 class="font-semibold">Parameter Changes</h2>
+    <div class="param-header">
+      <h2 class="param-title">Changes</h2>
     </div>
-    <div class="flex-1 overflow-y-auto p-4 space-y-2">
+    <div class="param-list">
       {#each parameterChanges as change}
-        <div
-          class="border-l-2 border-purple-500/30 pl-3 mb-3 hover:border-purple-500/50 transition-colors"
-        >
-          <div class="text-xs text-gray-400 mb-1">
-            {change.trackName} / {change.deviceName}
+        <div class="param-change">
+          <div class="param-location">{change.trackName} / {change.deviceName}</div>
+          <div class="param-name">{change.paramName}</div>
+          <div class="param-values">
+            <span class="param-val">{change.oldValue.toFixed(2)}</span>
+            <span class="param-arrow">→</span>
+            <span class="param-val param-val--new">{change.newValue.toFixed(2)}</span>
           </div>
-          <div class="flex items-center justify-between">
-            <span class="text-sm text-gray-300">{change.paramName}</span>
-            <span
-              class="text-xs font-mono bg-blue-500/10 text-blue-300 px-2 py-0.5 rounded"
-            >
-              {change.oldValue.toFixed(2)} --> {change.newValue.toFixed(2)}
-            </span>
-          </div>
-          <div class="text-xs text-gray-500 mt-1">
-            {new Date(change.timestamp).toLocaleTimeString()}
-          </div>
+          <div class="param-time">{new Date(change.timestamp).toLocaleTimeString()}</div>
         </div>
       {/each}
     </div>
-  </div>
+  </aside>
 {/if}
 
 <button
   on:click={onToggle}
-  class="fixed right-0 top-1/2 -translate-y-1/2 bg-gray-800 p-2 rounded-l-lg text-gray-400 hover:text-gray-200 hover:bg-gray-700"
-  aria-label={showParameterPanel
-    ? "hide parameter changes"
-    : "show parameter changes"}
+  class="panel-toggle"
+  aria-label={showParameterPanel ? "hide parameter changes" : "show parameter changes"}
 >
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    class="h-5 w-5"
+    class="h-4 w-4"
     viewBox="0 0 20 20"
     fill="currentColor"
   >
@@ -63,3 +53,132 @@ import type { ParameterChange } from "../types";
     />
   </svg>
 </button>
+
+<style>
+  /* ── Panel ── */
+  .param-panel {
+    width: 216px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .param-header {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--border-light);
+    flex-shrink: 0;
+  }
+
+  .param-title {
+    font-family: var(--font-serif);
+    font-size: 0.8rem;
+    font-weight: 400;
+    font-style: italic;
+    color: var(--ink-2);
+    margin: 0;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* ── Change entries — marginalia style ── */
+  .param-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.25rem 0;
+  }
+
+  .param-change {
+    border-left: 2px solid transparent;
+    padding: 0.575rem 0.875rem 0.575rem 0.75rem;
+    position: relative;
+    transition: border-color 0.15s;
+  }
+  .param-change:not(:last-child)::after {
+    content: '';
+    display: block;
+    position: absolute;
+    bottom: 0;
+    left: 0.875rem;
+    right: 0.875rem;
+    height: 1px;
+    background: var(--border-light);
+  }
+  .param-change:hover {
+    border-left-color: var(--accent);
+  }
+
+  .param-location {
+    font-size: 0.66rem;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .param-name {
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    color: var(--ink);
+    margin-bottom: 0.3rem;
+    line-height: 1.3;
+  }
+
+  .param-values {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .param-val {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--ink-2);
+    background: var(--bg);
+    border: 1px solid var(--border-light);
+    border-radius: 3px;
+    padding: 0.05rem 0.3rem;
+  }
+  .param-val--new {
+    color: var(--accent);
+    border-color: rgba(196, 113, 74, 0.25);
+  }
+
+  .param-arrow {
+    font-size: 0.62rem;
+    color: var(--ink-3);
+  }
+
+  .param-time {
+    font-family: var(--font-mono);
+    font-size: 0.63rem;
+    color: var(--ink-3);
+  }
+
+  /* ── Toggle tab on right edge ── */
+  .panel-toggle {
+    position: fixed;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-right: none;
+    border-radius: var(--radius) 0 0 var(--radius);
+    padding: 0.5rem 0.35rem;
+    color: var(--ink-3);
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+    box-shadow: var(--shadow-sm);
+  }
+  .panel-toggle:hover {
+    color: var(--accent);
+    background: var(--bg);
+  }
+</style>

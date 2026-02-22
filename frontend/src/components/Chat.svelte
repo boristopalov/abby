@@ -107,196 +107,379 @@
 </script>
 
 <style>
-  :global(.message-content p) {
-    margin: 0.25rem 0;
+  /* ── Shell ── */
+  .chat-shell {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
   }
-  :global(.message-content p:first-child) {
-    margin-top: 0;
+
+  /* ── Messages area ── */
+  .messages-outer {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
-  :global(.message-content p:last-child) {
-    margin-bottom: 0;
+
+  .messages-column {
+    width: 100%;
+    max-width: 720px;
+    padding: 2rem 1.5rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
   }
+
+  /* ── Message rows ── */
+  .message-row {
+    display: flex;
+    animation: msg-appear 150ms ease-out both;
+  }
+  .message-row--user { justify-content: flex-end; }
+  .message-row--ai   { justify-content: flex-start; }
+  .message-row--tool { justify-content: flex-start; }
+
+  @keyframes msg-appear {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── User message — warm blockquote ── */
+  .msg-user {
+    max-width: 72%;
+    background: var(--accent-light);
+    border: 1px solid rgba(196, 113, 74, 0.22);
+    border-radius: var(--radius-lg) var(--radius-lg) var(--radius) var(--radius-lg);
+    padding: 0.75rem 1.1rem;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    line-height: 1.65;
+    color: var(--ink);
+  }
+
+  /* ── AI message — flowing prose ── */
+  .msg-ai {
+    max-width: 88%;
+    font-family: var(--font-body);
+    font-size: 0.925rem;
+    line-height: 1.8;
+    color: var(--ink);
+  }
+
+  /* ── Tool call — reference card ── */
+  .msg-tool {
+    max-width: 90%;
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .tool-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    padding: 0.45rem 0.875rem;
+    color: var(--ink-2);
+  }
+
+  .tool-icon {
+    font-size: 0.65rem;
+    color: var(--accent);
+    opacity: 0.8;
+    flex-shrink: 0;
+  }
+
+  .tool-name {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--ink);
+  }
+
+  .tool-args {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--ink-3);
+  }
+
+  .tool-result {
+    border-top: 1px solid var(--border-light);
+    padding: 0.4rem 0.875rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--ink-2);
+    max-height: 6rem;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    background: var(--bg);
+  }
+
+  /* ── Markdown content (global — rendered via {@html}) ── */
+  :global(.message-content p) { margin: 0.35rem 0; }
+  :global(.message-content p:first-child) { margin-top: 0; }
+  :global(.message-content p:last-child)  { margin-bottom: 0; }
   :global(.message-content ul),
-  :global(.message-content ol) {
-    margin: 0.25rem 0;
-    padding-left: 1.25rem;
-  }
-  :global(.message-content ul) {
-    list-style-type: disc;
-  }
-  :global(.message-content ol) {
-    list-style-type: decimal;
-  }
-  :global(.message-content li) {
-    margin: 0.1rem 0;
-  }
+  :global(.message-content ol) { margin: 0.35rem 0; padding-left: 1.4rem; }
+  :global(.message-content ul) { list-style-type: disc; }
+  :global(.message-content ol) { list-style-type: decimal; }
+  :global(.message-content li) { margin: 0.15rem 0; }
   :global(.message-content code) {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 0.25rem;
+    background: var(--surface-warm);
+    border: 1px solid var(--border-light);
+    border-radius: 3px;
     padding: 0.1rem 0.3rem;
-    font-family: monospace;
-    font-size: 0.85em;
+    font-family: var(--font-mono);
+    font-size: 0.83em;
+    color: var(--ink);
   }
   :global(.message-content pre) {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 0.375rem;
-    padding: 0.75rem;
-    margin: 0.5rem 0;
+    background: var(--surface-warm);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 0.75rem 1rem;
+    margin: 0.6rem 0;
     overflow-x: auto;
   }
   :global(.message-content pre code) {
     background: none;
+    border: none;
     padding: 0;
+    font-size: 0.82em;
+    color: var(--ink);
   }
-  :global(.message-content strong) {
-    font-weight: 600;
-  }
-  :global(.message-content em) {
-    font-style: italic;
-  }
+  :global(.message-content strong) { font-weight: 600; color: var(--ink); }
+  :global(.message-content em)     { font-style: italic; }
   :global(.message-content h1),
   :global(.message-content h2),
   :global(.message-content h3) {
+    font-family: var(--font-serif);
     font-weight: 600;
-    margin: 0.5rem 0 0.25rem;
+    color: var(--ink);
+    margin: 0.75rem 0 0.3rem;
   }
-  :global(.message-content h1) { font-size: 1.1em; }
-  :global(.message-content h2) { font-size: 1.05em; }
+  :global(.message-content h1) { font-size: 1.15em; }
+  :global(.message-content h2) { font-size: 1.07em; }
   :global(.message-content h3) { font-size: 1em; }
   :global(.message-content a) {
-    color: #93c5fd;
+    color: var(--accent);
     text-decoration: underline;
+    text-underline-offset: 2px;
   }
   :global(.message-content blockquote) {
-    border-left: 3px solid rgba(255, 255, 255, 0.2);
-    padding-left: 0.75rem;
+    border-left: 3px solid var(--border);
+    padding-left: 0.875rem;
     margin: 0.5rem 0;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--ink-2);
+    font-style: italic;
   }
+
+  /* ── Input area ── */
+  .chat-input-area {
+    border-top: 1px solid var(--border-light);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.75rem 1.5rem 1.1rem;
+    flex-shrink: 0;
+  }
+
+  .input-inner {
+    width: 100%;
+    max-width: 720px;
+    position: relative;
+  }
+
+  /* Selected track chips */
+  .track-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    padding-bottom: 0.4rem;
+  }
+
+  .track-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--accent-light);
+    border: 1px solid rgba(196, 113, 74, 0.25);
+    border-radius: 99px;
+    padding: 0.2rem 0.6rem;
+    font-family: var(--font-body);
+    font-size: 0.77rem;
+    color: var(--accent);
+  }
+
+  .track-chip button {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.6;
+    display: flex;
+    align-items: center;
+  }
+  .track-chip button:hover { opacity: 1; }
+
+  /* Track dropdown */
+  .track-dropdown {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: var(--radius) var(--radius) 0 0;
+    max-height: 12rem;
+    overflow-y: auto;
+    box-shadow: var(--shadow-md);
+    z-index: 20;
+  }
+
+  .track-option {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--border-light);
+    padding: 0.5rem 1rem;
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    color: var(--ink);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .track-option:last-child { border-bottom: none; }
+  .track-option:hover { background: var(--accent-light); }
+
+  /* Input row */
+  .input-row {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .input-row:focus-within { border-color: var(--accent); }
+
+  .chat-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    padding: 0.625rem 1rem;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  .chat-input::placeholder { color: var(--ink-3); font-style: italic; }
+
+  .send-btn {
+    background: none;
+    border: none;
+    border-left: 1px solid var(--border-light);
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    color: var(--ink-3);
+    display: flex;
+    align-items: center;
+    transition: color 0.15s;
+    flex-shrink: 0;
+  }
+  .send-btn:hover { color: var(--accent); }
 </style>
 
-<div class="flex flex-col h-full">
+<div class="chat-shell">
   <!-- Messages area -->
-  <div
-    bind:this={messagesContainer}
-    class="flex-1 overflow-y-auto p-3 space-y-2"
-  >
-    {#each messages as message}
-      <div
-        class="flex {message.isUser ? 'justify-end' : 'justify-start'}"
-      >
-        {#if message.type === "function_call"}
-          <div class="max-w-[85%] bg-gray-800 border border-gray-600/50 rounded-lg text-xs font-mono overflow-hidden">
-            <div class="px-3 py-1.5 text-gray-400">
-              <span class="text-amber-400/80">⚙</span>
-              <span class="text-gray-200 ml-1">{message.text}</span>
-              {#if message.arguments && Object.keys(message.arguments).length > 0}
-                <span class="text-gray-500 ml-1">
-                  ({Object.entries(message.arguments).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(", ")})
-                </span>
+  <div class="messages-outer" bind:this={messagesContainer}>
+    <div class="messages-column">
+      {#each messages as message}
+        <div class="message-row {message.isUser ? 'message-row--user' : message.type === 'function_call' ? 'message-row--tool' : 'message-row--ai'}">
+          {#if message.type === "function_call"}
+            <!-- Reference card for tool calls -->
+            <div class="msg-tool">
+              <div class="tool-header">
+                <span class="tool-icon">⚙</span>
+                <span class="tool-name">{message.text}</span>
+                {#if message.arguments && Object.keys(message.arguments).length > 0}
+                  <span class="tool-args">
+                    ({Object.entries(message.arguments).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(", ")})
+                  </span>
+                {/if}
+              </div>
+              {#if message.result}
+                <div class="tool-result">{message.result}</div>
               {/if}
             </div>
-            {#if message.result}
-              <div class="border-t border-gray-700/50 px-3 py-1.5 text-gray-500 max-h-24 overflow-y-auto whitespace-pre-wrap">
-                {message.result}
-              </div>
-            {/if}
-          </div>
-        {:else}
-          <div
-            class={`max-w-[85%] break-words ${
-              message.isUser
-                ? "bg-blue-500 text-white rounded-2xl rounded-tr-sm"
-                : "bg-gray-700 text-gray-100 rounded-2xl rounded-tl-sm message-content"
-            } px-4 py-2 text-sm`}
-          >
-            {#if message.isUser}
-              {message.text}
-            {:else}
-              {@html renderMarkdown(message.text)}
-            {/if}
-          </div>
-        {/if}
-      </div>
-    {/each}
+          {:else}
+            <div class="{message.isUser ? 'msg-user' : 'msg-ai message-content'}">
+              {#if message.isUser}
+                {message.text}
+              {:else}
+                {@html renderMarkdown(message.text)}
+              {/if}
+            </div>
+          {/if}
+        </div>
+      {/each}
+    </div>
   </div>
 
   <!-- Input area -->
-  <div class="border-t border-gray-700 p-3">
-    <div class="relative">
-        {#if selectedTracks.length > 0}
-          <div
-            class="absolute bottom-full left-0 right-0 flex flex-wrap gap-1.5 p-2 bg-gray-800 border-x border-t border-gray-700 rounded-t"
-          >
-            {#each selectedTracks as track}
-              <div
-                class="bg-blue-500/30 text-blue-200 px-2.5 py-1 rounded-full text-xs flex items-center gap-1.5 border border-blue-500/20 shadow-sm"
-              >
-                <span class="font-medium">{track.name}</span>
-                <button
-                  onclick={() => removeTrack(track.id)}
-                  class="hover:text-blue-100 transition-colors"
-                  aria-label="Remove track"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-3.5 w-3.5"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fill-rule="evenodd"
-                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                      clip-rule="evenodd"
-                    />
-                  </svg>
-                </button>
-              </div>
-            {/each}
-          </div>
-        {/if}
+  <div class="chat-input-area">
+    <div class="input-inner">
+      {#if selectedTracks.length > 0}
+        <div class="track-chips">
+          {#each selectedTracks as track}
+            <div class="track-chip">
+              <span>{track.name}</span>
+              <button onclick={() => removeTrack(track.id)} aria-label="Remove track">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          {/each}
+        </div>
+      {/if}
 
-        {#if isSelectingTrack}
-        <div
-          class="absolute bottom-full left-0 right-0 bg-gray-800 border border-gray-700 rounded-t-lg shadow-lg max-h-48 overflow-y-auto {selectedTracks.length > 0 ? 'mb-10' : ''}"
-        >
+      {#if isSelectingTrack}
+        <div class="track-dropdown">
           {#each filteredTracks as track}
-            <button
-              onclick={() => selectTrack(track)}
-              class="w-full px-4 py-2 text-left text-sm hover:bg-gray-700 text-gray-200"
-            >
+            <button class="track-option" onclick={() => selectTrack(track)}>
               {track.name}
             </button>
           {/each}
         </div>
       {/if}
 
-      <input
-        type="text"
-        bind:value={chatInput}
-        onkeydown={handleKeyPress}
-        placeholder="Send a message... (Use # to tag tracks)"
-        class="w-full bg-gray-800 rounded-lg border border-gray-700 px-4 py-2 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-      />
-
-      <button
-        onclick={handleSubmit}
-        class="absolute right-2 top-1/2 -translate-y-1/2 text-blue-400 hover:text-blue-300"
-        aria-label="Send message"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-5 w-5"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-        >
-          <path
-            fill-rule="evenodd"
-            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z"
-            clip-rule="evenodd"
-          />
-        </svg>
-      </button>
+      <div class="input-row">
+        <input
+          type="text"
+          class="chat-input"
+          bind:value={chatInput}
+          onkeydown={handleKeyPress}
+          placeholder="Write a message… (use # to tag a track)"
+        />
+        <button class="send-btn" onclick={handleSubmit} aria-label="Send message">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd" />
+          </svg>
+        </button>
+      </div>
     </div>
   </div>
 </div>

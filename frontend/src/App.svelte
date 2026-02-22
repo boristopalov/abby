@@ -140,62 +140,53 @@
     }
 </script>
 
-<main class="h-screen flex flex-col bg-gray-900 text-gray-100">
-    <div class="border-b border-gray-800 p-3 flex justify-between items-center">
-        <h1 class="text-xl font-semibold">Abby</h1>
-        <div class="flex items-center gap-4">
+<main class="app-shell">
+    <!-- ── Header ── -->
+    <header class="app-header">
+        <h1 class="app-title">Abby</h1>
+        <div class="header-right">
             {#if projectState.activeProjectId}
-                <span class="text-sm text-gray-400">
-                    Project: {projectState.projects.find(
+                <span class="project-label">
+                    {projectState.projects.find(
                         (p) => p.id === projectState.activeProjectId,
                     )?.name || "Unknown"}
                 </span>
-                <button
-                    onclick={changeProject}
-                    class="px-3 py-1 rounded-lg text-sm bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
-                >
+                <button onclick={changeProject} class="btn-subtle">
                     Change Project
                 </button>
                 <button
                     onclick={handleReindexProject}
                     disabled={indexing.isIndexing || !$wsStore.isConnected}
-                    class="px-3 py-1 rounded-lg text-sm bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    class="btn-subtle"
                 >
                     Re-index
                 </button>
             {/if}
             <ConnectionStatus isConnected={$wsStore.isConnected} />
         </div>
-    </div>
+    </header>
 
     {#if !projectState.activeProjectId}
-        <!-- Project Selection Screen -->
-        <div class="flex-1 flex items-center justify-center">
-            <div class="w-full max-w-md p-6 space-y-6">
-                <h2 class="text-2xl font-semibold text-center">
-                    Select a Project
-                </h2>
+        <!-- ── Project Selection ── -->
+        <div class="project-select-screen">
+            <div class="project-select-card">
+                <h2 class="project-select-heading">Select a Project</h2>
 
-                <!-- Existing Projects -->
                 {#if projectState.projects.length > 0}
-                    <div class="space-y-2">
-                        <h3
-                            class="text-sm text-gray-400 uppercase tracking-wide"
-                        >
-                            Your Projects
-                        </h3>
-                        <div class="space-y-2">
+                    <div class="form-section">
+                        <div class="section-label">Your Projects</div>
+                        <div class="project-list">
                             {#each projectState.projects as project}
                                 <button
                                     onclick={() => selectProject(project)}
-                                    class="w-full p-3 rounded-lg bg-gray-800 hover:bg-gray-700 text-left transition-colors"
+                                    class="project-item"
                                 >
-                                    <div class="font-medium">
+                                    <div class="project-item-name">
                                         {project.name}
                                     </div>
-                                    <div class="text-sm text-gray-400">
+                                    <div class="project-item-meta">
                                         {project.indexedAt
-                                            ? `Indexed: ${new Date(project.indexedAt).toLocaleDateString()}`
+                                            ? `Indexed ${new Date(project.indexedAt).toLocaleDateString()}`
                                             : "Not yet indexed"}
                                     </div>
                                 </button>
@@ -204,40 +195,38 @@
                     </div>
                 {/if}
 
-                <!-- Create New Project -->
-                <div class="space-y-2">
-                    <h3 class="text-sm text-gray-400 uppercase tracking-wide">
-                        Create New Project
-                    </h3>
-                    <div class="flex gap-2">
+                <div class="form-section">
+                    <div class="section-label">Create New Project</div>
+                    <div class="create-row">
                         <input
                             type="text"
                             bind:value={newProjectName}
-                            placeholder="Project name..."
-                            class="flex-1 px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none"
+                            placeholder="Project name…"
+                            class="create-input"
                             onkeydown={(e) =>
                                 e.key === "Enter" && handleCreateProject()}
                         />
                         <button
                             onclick={handleCreateProject}
                             disabled={isCreatingProject}
-                            class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            class="btn-primary"
                         >
-                            {isCreatingProject ? "Creating..." : "Create"}
+                            {isCreatingProject ? "Creating…" : "Create"}
                         </button>
                     </div>
                     {#if projectError}
-                        <p class="text-sm text-red-400">{projectError}</p>
+                        <p class="error-msg">{projectError}</p>
                     {/if}
-                    <p class="text-xs text-gray-500">
-                        Make sure Ableton Live is running with AbletonOSC before
-                        creating a project.
+                    <p class="hint-text">
+                        Make sure Ableton Live is running with AbletonOSC
+                        before creating a project.
                     </p>
                 </div>
             </div>
         </div>
     {:else}
-        <div class="flex flex-1 min-h-0 relative">
+        <!-- ── Workspace ── -->
+        <div class="workspace">
             <SessionList
                 {showSessionPanel}
                 onToggle={() => (showSessionPanel = !showSessionPanel)}
@@ -246,26 +235,24 @@
                 tracks={tracks.tracks}
             />
 
-            <div class="flex-1 flex flex-col min-h-0">
+            <div class="main-column">
                 {#if indexing.isIndexing}
                     <IndexingBanner progress={indexing.progress} />
                 {/if}
-                <div class="flex-1 p-4 min-h-0">
-                    <Chat
-                        messages={$globalMessages}
-                        onSendMessage={(message) => {
-                            const msg: ChatMessage = {
-                                text: message,
-                                isUser: true,
-                                type: "text",
-                            };
-                            if ($wsStore.isConnected) {
-                                addGlobalMessage(msg);
-                                wsStore.sendMessage(message);
-                            }
-                        }}
-                    />
-                </div>
+                <Chat
+                    messages={$globalMessages}
+                    onSendMessage={(message) => {
+                        const msg: ChatMessage = {
+                            text: message,
+                            isUser: true,
+                            type: "text",
+                        };
+                        if ($wsStore.isConnected) {
+                            addGlobalMessage(msg);
+                            wsStore.sendMessage(message);
+                        }
+                    }}
+                />
             </div>
 
             <ParameterPanel
@@ -280,5 +267,225 @@
 <style>
     :global(body) {
         margin: 0;
+    }
+
+    /* ── Shell ── */
+    .app-shell {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--font-body);
+    }
+
+    /* ── Header ── */
+    .app-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.625rem 1.5rem;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+        flex-shrink: 0;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .app-title {
+        font-family: var(--font-serif);
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--ink);
+        letter-spacing: 0.02em;
+        margin: 0;
+    }
+
+    .header-right {
+        display: flex;
+        align-items: center;
+        gap: 0.875rem;
+    }
+
+    .project-label {
+        font-family: var(--font-body);
+        font-size: 0.82rem;
+        color: var(--ink-2);
+        font-style: italic;
+    }
+
+    .btn-subtle {
+        background: none;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.2rem 0.7rem;
+        font-family: var(--font-body);
+        font-size: 0.78rem;
+        color: var(--ink-2);
+        cursor: pointer;
+        transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-subtle:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+    .btn-subtle:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    /* ── Project Selection ── */
+    .project-select-screen {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+    }
+
+    .project-select-card {
+        width: 100%;
+        max-width: 440px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 2.5rem;
+        box-shadow: var(--shadow-md);
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .project-select-heading {
+        font-family: var(--font-serif);
+        font-size: 1.55rem;
+        font-weight: 600;
+        color: var(--ink);
+        margin: 0;
+        text-align: center;
+        letter-spacing: 0.01em;
+    }
+
+    .form-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.625rem;
+    }
+
+    .section-label {
+        font-family: var(--font-body);
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--ink-3);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+    }
+
+    .project-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .project-item {
+        width: 100%;
+        text-align: left;
+        background: var(--bg);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius);
+        padding: 0.7rem 1rem;
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+    }
+    .project-item:hover {
+        border-color: var(--accent);
+        background: var(--accent-light);
+    }
+
+    .project-item-name {
+        font-family: var(--font-body);
+        font-size: 0.9rem;
+        color: var(--ink);
+        font-weight: 500;
+    }
+
+    .project-item-meta {
+        font-size: 0.73rem;
+        color: var(--ink-3);
+        margin-top: 0.15rem;
+    }
+
+    .create-row {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .create-input {
+        flex: 1;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 0.5rem 0.875rem;
+        font-family: var(--font-body);
+        font-size: 0.9rem;
+        color: var(--ink);
+        outline: none;
+        transition: border-color 0.15s;
+    }
+    .create-input::placeholder {
+        color: var(--ink-3);
+        font-style: italic;
+    }
+    .create-input:focus {
+        border-color: var(--accent);
+    }
+
+    .btn-primary {
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius);
+        padding: 0.5rem 1.25rem;
+        font-family: var(--font-body);
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: opacity 0.15s;
+        white-space: nowrap;
+    }
+    .btn-primary:hover {
+        opacity: 0.85;
+    }
+    .btn-primary:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .error-msg {
+        font-size: 0.8rem;
+        color: #b05050;
+        margin: 0;
+    }
+
+    .hint-text {
+        font-size: 0.73rem;
+        color: var(--ink-3);
+        margin: 0;
+        line-height: 1.55;
+        font-style: italic;
+    }
+
+    /* ── Workspace (3-pane) ── */
+    .workspace {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+        position: relative;
+    }
+
+    .main-column {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        min-width: 0;
     }
 </style>
