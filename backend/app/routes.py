@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from .ableton import AbletonClient, get_ableton_client
 from .agent import ChatService
+from .analytics import AnalyticsService, get_analytics_service
 from .db.ableton_repository import AbletonRepository, get_ableton_repository
 from .db.chat_repository import ChatRepository, get_chat_repository
 from .db.project_repository import ProjectRepository, get_project_repository
@@ -161,6 +162,7 @@ async def create_project(
     request: CreateProjectRequest,
     project_repo: ProjectRepository = Depends(get_project_repository),
     ableton_client: AbletonClient = Depends(get_ableton_client),
+    analytics: AnalyticsService = Depends(get_analytics_service),
 ):
     """Create a new project. Indexing happens in the background when the WebSocket connects."""
     try:
@@ -180,6 +182,7 @@ async def create_project(
 
         project = project_repo.create_project(request.name)
         logger.info(f"[POST /api/projects] Created project with ID: {project.id}")
+        analytics.capture("server", "project_created", {"project_id": project.id})
 
         return {
             "id": project.id,
