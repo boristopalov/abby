@@ -21,33 +21,33 @@ struct MicrophoneButton: View {
 
     private var iconColor: Color {
         if !isReady {
-            return .gray
+            return Color.atelier.ink3
         } else if isRecording {
             return .white
         } else {
-            return .primary
+            return Color.atelier.ink
         }
     }
 
     private var backgroundColor: Color {
         if isRecording {
-            return Color(red: 1.0, green: 0.25, blue: 0.35)
+            return Color.atelier.accent  // Terracotta
         } else {
-            return .secondary.opacity(0.15)
+            return Color.atelier.border.opacity(0.6)  // Warm soft idle
         }
     }
 
     private var glowColor: Color {
-        Color(red: 1.0, green: 0.3, blue: 0.4)
+        Color.atelier.accent
     }
 
     var body: some View {
         Button(action: action) {
             ZStack {
-                // Glow effect when recording
+                // Glow effect when recording — warm terracotta halo
                 if isRecording {
                     Circle()
-                        .fill(glowColor.opacity(0.25))
+                        .fill(glowColor.opacity(0.20))
                         .frame(width: 70, height: 70)
                         .blur(radius: 8)
                         .scaleEffect(amplitudeScale * pulseScale)
@@ -58,7 +58,7 @@ struct MicrophoneButton: View {
                     .fill(backgroundColor)
                     .frame(width: 55, height: 55)
                     .shadow(
-                        color: isRecording ? glowColor.opacity(0.5) : .clear,
+                        color: isRecording ? glowColor.opacity(0.40) : .clear,
                         radius: isRecording ? 6 + CGFloat(amplitude) * 10 : 0
                     )
 
@@ -90,6 +90,6 @@ struct MicrophoneButton: View {
         MicrophoneButton(isRecording: true, isReady: true, amplitude: 0.5) {}
         MicrophoneButton(isRecording: false, isReady: false, amplitude: 0.0) {}
     }
-    .padding()
-    .background(Color(white: 0.15))
+    .padding(40)
+    .background(Color.atelier.bg)
 }

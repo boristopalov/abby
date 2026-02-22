@@ -9,25 +9,25 @@ struct GrainyGradientCircle: View {
     @State private var phase2: Double = 0
     @State private var phase3: Double = 0
 
-    // Ethereal color palette - soft pinks, blues, purples
+    // Warm atelier palette — terracotta idle, rust/amber processing, sage playing
     private var plasmaColors: (primary: Color, secondary: Color, accent: Color) {
         if isProcessing {
             return (
-                Color(red: 0.6, green: 0.4, blue: 1.0),  // Purple
-                Color(red: 0.3, green: 0.7, blue: 1.0),  // Cyan
-                Color(red: 0.9, green: 0.5, blue: 0.9)   // Pink
+                Color(red: 0.72, green: 0.33, blue: 0.18),  // Deep rust
+                Color(red: 0.87, green: 0.60, blue: 0.25),  // Amber
+                Color(red: 0.93, green: 0.78, blue: 0.40)   // Golden
             )
         } else if isPlayingAudio {
             return (
-                Color(red: 0.3, green: 0.9, blue: 0.7),  // Teal
-                Color(red: 0.4, green: 0.7, blue: 1.0),  // Blue
-                Color(red: 0.2, green: 1.0, blue: 0.8)   // Mint
+                Color(red: 0.48, green: 0.62, blue: 0.49),  // Sage green
+                Color(red: 0.62, green: 0.76, blue: 0.64),  // Light sage
+                Color(red: 0.55, green: 0.70, blue: 0.42)   // Olive sage
             )
         } else {
             return (
-                Color(red: 0.7, green: 0.5, blue: 1.0),  // Lavender
-                Color(red: 0.5, green: 0.6, blue: 1.0),  // Periwinkle
-                Color(red: 0.95, green: 0.6, blue: 0.85) // Soft pink
+                Color(red: 0.77, green: 0.44, blue: 0.29),  // Terracotta
+                Color(red: 0.87, green: 0.64, blue: 0.32),  // Warm amber
+                Color(red: 0.96, green: 0.83, blue: 0.72)   // Peach
             )
         }
     }
@@ -53,13 +53,13 @@ struct GrainyGradientCircle: View {
             let size = min(geometry.size.width, geometry.size.height)
 
             ZStack {
-                // Outer glow
+                // Outer glow — warm colored halo on parchment
                 Circle()
                     .fill(
                         RadialGradient(
                             colors: [
-                                plasmaColors.primary.opacity(0.3),
-                                plasmaColors.secondary.opacity(0.15),
+                                plasmaColors.primary.opacity(0.22),
+                                plasmaColors.secondary.opacity(0.10),
                                 .clear
                             ],
                             center: .center,
@@ -70,14 +70,14 @@ struct GrainyGradientCircle: View {
                     .frame(width: size * 1.3, height: size * 1.3)
                     .blur(radius: 20)
 
-                // Glass sphere base
+                // Sphere base — warm-tinted surface
                 Circle()
                     .fill(
                         RadialGradient(
                             colors: [
-                                Color.white.opacity(0.08),
-                                Color.white.opacity(0.03),
-                                Color(white: 0.5).opacity(0.05)
+                                Color.white.opacity(0.06),
+                                Color.white.opacity(0.02),
+                                Color(white: 0.5).opacity(0.04)
                             ],
                             center: .center,
                             startRadius: 0,
@@ -129,8 +129,8 @@ struct GrainyGradientCircle: View {
                         .fill(
                             RadialGradient(
                                 colors: [
-                                    .white.opacity(0.4),
-                                    plasmaColors.primary.opacity(0.2),
+                                    .white.opacity(0.35),
+                                    plasmaColors.primary.opacity(0.18),
                                     .clear
                                 ],
                                 center: .center,
@@ -148,13 +148,13 @@ struct GrainyGradientCircle: View {
                 .clipShape(Circle())
                 .frame(width: size, height: size)
 
-                // Glass rim highlight (top)
+                // Rim highlight (top)
                 Ellipse()
                     .fill(
                         LinearGradient(
                             colors: [
-                                .white.opacity(0.5),
-                                .white.opacity(0.2),
+                                .white.opacity(0.4),
+                                .white.opacity(0.15),
                                 .clear
                             ],
                             startPoint: .top,
@@ -165,15 +165,15 @@ struct GrainyGradientCircle: View {
                     .offset(y: -size * 0.32)
                     .blur(radius: 4)
 
-                // Glass rim highlight (bottom edge)
+                // Rim highlight (bottom edge)
                 Ellipse()
                     .stroke(
                         LinearGradient(
                             colors: [
                                 .clear,
-                                .white.opacity(0.15),
-                                .white.opacity(0.3),
-                                .white.opacity(0.15),
+                                .white.opacity(0.12),
+                                .white.opacity(0.22),
+                                .white.opacity(0.12),
                                 .clear
                             ],
                             startPoint: .leading,
@@ -185,16 +185,16 @@ struct GrainyGradientCircle: View {
                     .offset(y: size * 0.38)
                     .blur(radius: 1)
 
-                // Subtle sphere edge definition
+                // Sphere edge definition
                 Circle()
                     .stroke(
                         LinearGradient(
                             colors: [
-                                .white.opacity(0.25),
-                                .white.opacity(0.1),
+                                .white.opacity(0.20),
+                                .white.opacity(0.08),
                                 .clear,
-                                .white.opacity(0.05),
-                                .white.opacity(0.15)
+                                .white.opacity(0.04),
+                                .white.opacity(0.12)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -208,10 +208,10 @@ struct GrainyGradientCircle: View {
             .scaleEffect(amplitudeScale)
             .animation(.easeOut(duration: 0.1), value: amplitudeScale)
             .shadow(
-                color: plasmaColors.primary.opacity(glowIntensity * 0.5),
-                radius: 25,
+                color: plasmaColors.primary.opacity(glowIntensity * 0.35),
+                radius: 20,
                 x: 0,
-                y: 8
+                y: 6
             )
             .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
         }
@@ -272,21 +272,27 @@ struct GrainyGradientCircle: View {
         VStack {
             GrainyGradientCircle(amplitude: 0.0, isProcessing: false, isPlayingAudio: false)
                 .frame(width: 160, height: 160)
-            Text("Idle").foregroundStyle(.white)
+            Text("Idle")
+                .font(.system(.caption, design: .serif))
+                .foregroundStyle(Color.atelier.ink2)
         }
 
         VStack {
             GrainyGradientCircle(amplitude: 0.4, isProcessing: true, isPlayingAudio: false)
                 .frame(width: 160, height: 160)
-            Text("Processing").foregroundStyle(.white)
+            Text("Processing")
+                .font(.system(.caption, design: .serif))
+                .foregroundStyle(Color.atelier.ink2)
         }
 
         VStack {
             GrainyGradientCircle(amplitude: 0.6, isProcessing: false, isPlayingAudio: true)
                 .frame(width: 160, height: 160)
-            Text("Playing").foregroundStyle(.white)
+            Text("Playing")
+                .font(.system(.caption, design: .serif))
+                .foregroundStyle(Color.atelier.ink2)
         }
     }
     .padding(40)
-    .background(Color(red: 0.05, green: 0.05, blue: 0.12))
+    .background(Color.atelier.bg)
 }
