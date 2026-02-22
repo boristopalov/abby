@@ -275,7 +275,7 @@ class ChatService:
                     )
                     yield ToolCallEvent(
                         run_id=run_id,
-                        content=event.part.tool_call_id,
+                        content=event.part.tool_name,
                         arguments=event.part.args_as_dict(),
                         tool_call_id=event.tool_call_id,
                     )
