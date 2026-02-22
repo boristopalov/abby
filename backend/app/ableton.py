@@ -166,7 +166,9 @@ class AbletonClient:
         """
         for i in range(max_sends):
             try:
-                self.client.query("/live/track/get/send", [track_id, i], timeout=1.0)
+                await self.client.query(
+                    "/live/track/get/send", [track_id, i], timeout=1.0
+                )
             except Exception:
                 return i
         return max_sends

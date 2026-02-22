@@ -4,12 +4,14 @@ from pydantic import BaseModel, Field
 
 
 class TextDeltaEvent(BaseModel):
+    run_id: str
     role: str = "model"
     content: str
     type: Literal["text"] = "text"
 
 
 class ToolCallEvent(BaseModel):
+    run_id: str
     role: str = "model"
     tool_call_id: str
     content: str
@@ -18,6 +20,7 @@ class ToolCallEvent(BaseModel):
 
 
 class ToolResultEvent(BaseModel):
+    run_id: str
     role: str = "model"
     content: str
     tool_call_id: str
@@ -25,12 +28,14 @@ class ToolResultEvent(BaseModel):
 
 
 class EndEvent(BaseModel):
+    run_id: str
     role: str = "model"
     content: str = "<|END_MESSAGE|>"
     type: Literal["end_message"] = "end_message"
 
 
 class ErrorEvent(BaseModel):
+    run_id: str
     content: str
     type: Literal["error"] = "error"
 

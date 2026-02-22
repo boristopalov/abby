@@ -1,3 +1,4 @@
+import uuid
 from dataclasses import dataclass
 from typing import Any, AsyncGenerator, Dict
 
@@ -248,9 +249,10 @@ class ChatService:
         message: Dict[str, Any],
     ) -> AsyncGenerator[AgentEvent, None]:
         """Process a message and yield response chunks for the websocket."""
+        run_id = str(uuid.uuid4())
         if not self.chat_repo.get_chat_session(session_id):
             logger.error(f"Session not found: {session_id}")
-            yield ErrorEvent(content="No active session")
+            yield ErrorEvent(run_id=run_id, content="No active session")
             return
 
         logger.info(f"Processing message for session {session_id}")
@@ -272,7 +274,8 @@ class ChatService:
                         f"Tool call: {event.part.tool_name}; Tool call ID: {event.tool_call_id}"
                     )
                     yield ToolCallEvent(
-                        content=event.part.tool_name,
+                        run_id=run_id,
+                        content=event.part.tool_call_id,
                         arguments=event.part.args_as_dict(),
                         tool_call_id=event.tool_call_id,
                     )
@@ -282,18 +285,21 @@ class ChatService:
                             f"Tool result: {event.result.tool_name}; Tool call ID: {event.tool_call_id}"
                         )
                         yield ToolResultEvent(
+                            run_id=run_id,
                             tool_call_id=event.tool_call_id,
                             content=event.result.model_response_str(),
                         )
                 elif isinstance(event, PartStartEvent):
                     if isinstance(event.part, TextPart) and event.part.content:
-                        yield TextDeltaEvent(content=event.part.content)
+                        yield TextDeltaEvent(run_id=run_id, content=event.part.content)
                 elif isinstance(event, PartDeltaEvent):
                     if (
                         isinstance(event.delta, TextPartDelta)
                         and event.delta.content_delta
                     ):
-                        yield TextDeltaEvent(content=event.delta.content_delta)
+                        yield TextDeltaEvent(
+                            run_id=run_id, content=event.delta.content_delta
+                        )
                 elif isinstance(event, AgentRunResultEvent):
                     self.chat_repo.save_message_history(
                         session_id, event.result.all_messages()
@@ -301,10 +307,12 @@ class ChatService:
 
         except Exception as e:
             logger.exception(f"Error in process_message: {e} | session={session_id}")
-            yield ErrorEvent(content="Something went wrong. Please try again.")
+            yield ErrorEvent(
+                run_id=run_id, content="Something went wrong. Please try again."
+            )
             return
 
-        yield EndEvent()
+        yield EndEvent(run_id=run_id)
 
     def get_messages_for_display(self, session_id: str) -> list[dict]:
         """Extract all displayable messages from pydantic-ai message history.
