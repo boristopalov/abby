@@ -2,7 +2,10 @@ export interface ChatMessage {
   text: string;
   isUser: boolean;
   timestamp?: number;
-  type?: "text" | "function_call" | "error";
+  type?: "text" | "function_call" | "function_result" | "error";
+  arguments?: Record<string, unknown>;
+  tool_call_id?: string;
+  result?: string;
   trackId?: number;
 }
 
@@ -37,5 +40,5 @@ export interface ChatSession {
 export interface Project {
   id: number;
   name: string;
-  indexedAt: number;
+  indexedAt: number | null;
 }

@@ -7,14 +7,17 @@ from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .ableton import AbletonClient, get_ableton_client
-from .agent import Agent, get_agent
-from .chat import ChatContext, get_chat_context
-from .db.db_service import DBService, get_db_service
+from .agent import ChatService
+from .db import SessionLocal
+from .db.ableton_repository import AbletonRepository, get_ableton_repository
+from .db.chat_repository import ChatRepository, get_chat_repository
 from .db.models import init_db
+from .db.project_repository import ProjectRepository, get_project_repository
+from .indexing import IndexingService
 from .logger import logger
 from .routes import router as api_router
 from .sync import get_sync_service
-from .tts import TTSClient, TextBuffer, get_tts_client
+from .tts import TextBuffer, TTSClient, get_tts_client
 
 load_dotenv()
 
@@ -35,21 +38,15 @@ app.add_middleware(
 app.include_router(api_router, prefix="/api")
 
 
-@app.get("/")
-async def root():
-    logger.info("[GET /] Root endpoint called")
-    return {"message": "Ableton Assistant API"}
-
-
 @app.websocket("/ws")
 async def websocket_endpoint(
     websocket: WebSocket,
-    sessionId: Optional[str] = None,
-    projectId: Optional[int] = None,
-    db_service: DBService = Depends(get_db_service),
+    sessionId: str,
+    projectId: int,
+    project_repo: ProjectRepository = Depends(get_project_repository),
+    chat_repo: ChatRepository = Depends(get_chat_repository),
+    ableton_repo: AbletonRepository = Depends(get_ableton_repository),
     ableton_client: AbletonClient = Depends(get_ableton_client),
-    agent: Agent = Depends(get_agent),
-    context: ChatContext = Depends(get_chat_context),
 ):
     if not sessionId:
         logger.warning("[WS /ws] WebSocket connection attempt without session ID")
@@ -61,82 +58,99 @@ async def websocket_endpoint(
         await websocket.close(code=4001, reason="Project ID is required")
         return
 
-    # Verify project exists
-    project = db_service.get_project(projectId)
+    project = project_repo.get_project(projectId)
     if not project:
         logger.warning(f"[WS /ws] Project not found: {projectId}")
         await websocket.close(code=4002, reason="Project not found")
         return
 
+    chat_service = ChatService(chat_repo, ableton_repo, ableton_client)
+    indexing_task = None
     try:
         await websocket.accept()
         logger.info(
             f"[WS /ws] WebSocket connected - session: {sessionId}, project: {project.name}"
         )
 
-        loop = asyncio.get_running_loop()
-        ableton_client.set_websocket(websocket, loop)
+        await ableton_client.start()
+        ableton_client.set_websocket(websocket)
 
-        # Start sync listeners for real-time parameter updates
-        sync_service = get_sync_service(ableton_client)
-        project_data = db_service.load_project_structure(projectId)
-        if project_data:
-            sync_service.start_listeners(projectId, project_data)
-
-        # Set up session
-        context.set_session(sessionId, projectId)
-
-        # Create chat session if needed
-        session = db_service.get_chat_session(sessionId)
+        session = chat_repo.get_chat_session(sessionId)
         if not session:
             logger.info(f"[WS /ws] Creating new chat session: {sessionId}")
-            db_service.create_chat_session(f"Chat - {project.name}", sessionId)
-            db_service.link_session_to_project(sessionId, projectId)
+            chat_repo.create_chat_session(f"Chat - {project.name}", sessionId)
+            chat_repo.link_session_to_project(sessionId, projectId)
 
-        # Send tracks info to frontend
-        await websocket.send_json({"type": "loading_progress", "content": 10})
-        tracks_for_frontend = db_service.get_project_tracks_for_frontend(projectId)
-        await websocket.send_json({"type": "tracks", "content": tracks_for_frontend})
-        await websocket.send_json({"type": "loading_progress", "content": 100})
+        if project.indexed_at is None:
+            await websocket.send_json(
+                {
+                    "type": "indexing_status",
+                    "content": {"isIndexing": True, "progress": 0},
+                }
+            )
+            indexing_task = asyncio.create_task(
+                _background_index(websocket, ableton_client, projectId)
+            )
+        else:
+            await websocket.send_json(
+                {"type": "indexing_status", "content": {"isIndexing": False}}
+            )
+            tracks_for_frontend = ableton_repo.get_project_tracks_for_frontend(projectId)
+            await websocket.send_json(
+                {
+                    "type": "tracks",
+                    "content": [
+                        t.model_dump(by_alias=True) for t in tracks_for_frontend
+                    ],
+                }
+            )
+            sync_service = get_sync_service(ableton_client)
+            project_data = ableton_repo.load_project_structure(projectId)
+            if project_data:
+                sync_service.start_listeners(projectId, project_data)
+
         logger.info("[WS /ws] WebSocket setup complete")
 
-        # Handle incoming messages
         while True:
             data = await websocket.receive_json()
             msg = data.get("message")
             logger.info(f"[WS] Received WS Data: {data}")
 
-            # Skip blank audio markers - no speech detected
             if msg == "[BLANK_AUDIO]" or not msg or not msg.strip():
                 logger.debug("[WS /ws] Skipping blank/empty audio")
                 continue
 
             if msg == "get-param-changes":
                 logger.info("[WS /ws] Processing parameter changes request")
-                changes_summary = db_service.get_recent_parameter_changes()
-                async for chunk in agent.process_message(
-                    context,
-                    {"role": "user", "content": json.dumps(changes_summary)},
-                    db_service,
-                    ableton_client,
+                changes_summary = ableton_repo.get_recent_parameter_changes()
+                async for chunk in chat_service.process_message(
+                    sessionId,
+                    projectId,
+                    {
+                        "role": "user",
+                        "content": json.dumps(
+                            [c.model_dump() for c in changes_summary]
+                        ),
+                    },
                 ):
-                    await websocket.send_json(chunk)
+                    await websocket.send_json(chunk.model_dump())
                     await asyncio.sleep(0)
                 continue
 
             logger.info(f"[WS /ws] Processing user message: {msg[:100]}...")
-            async for chunk in agent.process_message(
-                context,
+            async for chunk in chat_service.process_message(
+                sessionId,
+                projectId,
                 {"role": "user", "content": msg},
-                db_service,
-                ableton_client,
             ):
                 logger.info(f"[WS /ws] Sending chunk: {chunk}")
-                await websocket.send_json(chunk)
+                await websocket.send_json(chunk.model_dump())
                 await asyncio.sleep(0)
 
     except WebSocketDisconnect:
         logger.info(f"[WS /ws] WebSocket disconnected for session: {sessionId}")
+        if indexing_task and not indexing_task.done():
+            indexing_task.cancel()
         sync_service = get_sync_service(ableton_client)
         sync_service.stop_listeners()
         ableton_client.unset_websocket()
@@ -145,6 +159,8 @@ async def websocket_endpoint(
             f"[WS /ws] WebSocket error for session {sessionId}: {str(e)}", exc_info=True
         )
         await websocket.close(code=1011, reason=str(e))
+        if indexing_task and not indexing_task.done():
+            indexing_task.cancel()
         sync_service = get_sync_service(ableton_client)
         sync_service.stop_listeners()
         ableton_client.unset_websocket()
@@ -152,11 +168,10 @@ async def websocket_endpoint(
 
 async def process_agent_with_tts(
     websocket: WebSocket,
-    agent: Agent,
-    context: ChatContext,
+    session_id: str,
+    project_id: int,
     message: dict,
-    db_service: DBService,
-    ableton_client: AbletonClient,
+    chat_service: ChatService,
     tts_client: TTSClient,
 ):
     """Process agent message and stream TTS audio."""
@@ -171,27 +186,23 @@ async def process_agent_with_tts(
             yield item
 
     async def agent_consumer():
-        """Consume agent output, queue text for TTS, send metadata to websocket."""
-        async for chunk in agent.process_message(
-            context, message, db_service, ableton_client
+        async for chunk in chat_service.process_message(
+            session_id, project_id, message
         ):
-            msg_type = chunk.get("type")
-
-            if msg_type == "text":
-                sentences = buffer.add(chunk.get("content", ""))
+            if chunk.type == "text":
+                sentences = buffer.add(chunk.content)
                 for sentence in sentences:
                     await text_queue.put(sentence)
-            elif msg_type == "end_message":
+            elif chunk.type == "end_message":
                 remaining = buffer.flush()
                 if remaining:
                     await text_queue.put(remaining)
-                await text_queue.put(None)  # Signal end
-                await websocket.send_json(chunk)
-            else:  # function_call, error
-                await websocket.send_json(chunk)
+                await text_queue.put(None)
+                await websocket.send_json(chunk.model_dump())
+            else:
+                await websocket.send_json(chunk.model_dump())
 
     async def tts_producer():
-        """Stream audio from TTS to websocket."""
         try:
             async for audio_chunk in tts_client.stream_audio(text_from_queue()):
                 await websocket.send_bytes(audio_chunk)
@@ -210,10 +221,10 @@ async def websocket_audio_endpoint(
     websocket: WebSocket,
     sessionId: Optional[str] = None,
     projectId: Optional[int] = None,
-    db_service: DBService = Depends(get_db_service),
+    project_repo: ProjectRepository = Depends(get_project_repository),
+    chat_repo: ChatRepository = Depends(get_chat_repository),
+    ableton_repo: AbletonRepository = Depends(get_ableton_repository),
     ableton_client: AbletonClient = Depends(get_ableton_client),
-    agent: Agent = Depends(get_agent),
-    context: ChatContext = Depends(get_chat_context),
     tts_client: Optional[TTSClient] = Depends(get_tts_client),
 ):
     if not sessionId:
@@ -226,8 +237,7 @@ async def websocket_audio_endpoint(
         await websocket.close(code=4001, reason="Project ID is required")
         return
 
-    # Verify project exists
-    project = db_service.get_project(projectId)
+    project = project_repo.get_project(projectId)
     if not project:
         logger.warning(f"[WS /ws/audio] Project not found: {projectId}")
         await websocket.close(code=4002, reason="Project not found")
@@ -238,59 +248,76 @@ async def websocket_audio_endpoint(
         await websocket.close(code=4003, reason="TTS not configured")
         return
 
+    chat_service = ChatService(chat_repo, ableton_repo, ableton_client)
+    indexing_task = None
     try:
         await websocket.accept()
         logger.info(
             f"[WS /ws/audio] WebSocket connected - session: {sessionId}, project: {project.name}"
         )
 
-        loop = asyncio.get_running_loop()
-        ableton_client.set_websocket(websocket, loop)
+        await ableton_client.start()
+        ableton_client.set_websocket(websocket)
 
-        # Start sync listeners for real-time parameter updates
-        sync_service = get_sync_service(ableton_client)
-        project_data = db_service.load_project_structure(projectId)
-        if project_data:
-            sync_service.start_listeners(projectId, project_data)
-
-        # Set up session
-        context.set_session(sessionId, projectId)
-
-        # Create chat session if needed
-        session = db_service.get_chat_session(sessionId)
+        session = chat_repo.get_chat_session(sessionId)
         if not session:
             logger.info(f"[WS /ws/audio] Creating new chat session: {sessionId}")
-            db_service.create_chat_session(f"Chat - {project.name}", sessionId)
-            db_service.link_session_to_project(sessionId, projectId)
+            chat_repo.create_chat_session(f"Chat - {project.name}", sessionId)
+            chat_repo.link_session_to_project(sessionId, projectId)
 
-        # Send tracks info to frontend
-        await websocket.send_json({"type": "loading_progress", "content": 10})
-        tracks_for_frontend = db_service.get_project_tracks_for_frontend(projectId)
-        await websocket.send_json({"type": "tracks", "content": tracks_for_frontend})
-        await websocket.send_json({"type": "loading_progress", "content": 100})
+        if project.indexed_at is None:
+            await websocket.send_json(
+                {
+                    "type": "indexing_status",
+                    "content": {"isIndexing": True, "progress": 0},
+                }
+            )
+            indexing_task = asyncio.create_task(
+                _background_index(websocket, ableton_client, projectId)
+            )
+        else:
+            await websocket.send_json(
+                {"type": "indexing_status", "content": {"isIndexing": False}}
+            )
+            tracks_for_frontend = ableton_repo.get_project_tracks_for_frontend(projectId)
+            await websocket.send_json(
+                {
+                    "type": "tracks",
+                    "content": [
+                        t.model_dump(by_alias=True) for t in tracks_for_frontend
+                    ],
+                }
+            )
+            sync_service = get_sync_service(ableton_client)
+            project_data = ableton_repo.load_project_structure(projectId)
+            if project_data:
+                sync_service.start_listeners(projectId, project_data)
+
         logger.info("[WS /ws/audio] WebSocket setup complete")
 
-        # Handle incoming messages
         while True:
             data = await websocket.receive_json()
             msg = data.get("message")
             logger.info(f"[WS /ws/audio] Received WS Data: {data}")
 
-            # Skip blank audio markers - no speech detected
             if msg == "[BLANK_AUDIO]" or not msg or not msg.strip():
                 logger.debug("[WS /ws/audio] Skipping blank/empty audio")
                 continue
 
             if msg == "get-param-changes":
                 logger.info("[WS /ws/audio] Processing parameter changes request")
-                changes_summary = db_service.get_recent_parameter_changes()
+                changes_summary = ableton_repo.get_recent_parameter_changes()
                 await process_agent_with_tts(
                     websocket,
-                    agent,
-                    context,
-                    {"role": "user", "content": json.dumps(changes_summary)},
-                    db_service,
-                    ableton_client,
+                    sessionId,
+                    projectId,
+                    {
+                        "role": "user",
+                        "content": json.dumps(
+                            [c.model_dump() for c in changes_summary]
+                        ),
+                    },
+                    chat_service,
                     tts_client,
                 )
                 continue
@@ -298,16 +325,17 @@ async def websocket_audio_endpoint(
             logger.info(f"[WS /ws/audio] Processing user message: {msg[:100]}...")
             await process_agent_with_tts(
                 websocket,
-                agent,
-                context,
+                sessionId,
+                projectId,
                 {"role": "user", "content": msg},
-                db_service,
-                ableton_client,
+                chat_service,
                 tts_client,
             )
 
     except WebSocketDisconnect:
         logger.info(f"[WS /ws/audio] WebSocket disconnected for session: {sessionId}")
+        if indexing_task and not indexing_task.done():
+            indexing_task.cancel()
         sync_service = get_sync_service(ableton_client)
         sync_service.stop_listeners()
         ableton_client.unset_websocket()
@@ -317,9 +345,59 @@ async def websocket_audio_endpoint(
             exc_info=True,
         )
         await websocket.close(code=1011, reason=str(e))
+        if indexing_task and not indexing_task.done():
+            indexing_task.cancel()
         sync_service = get_sync_service(ableton_client)
         sync_service.stop_listeners()
         ableton_client.unset_websocket()
+
+
+async def _background_index(
+    websocket: WebSocket,
+    ableton_client: AbletonClient,
+    project_id: int,
+) -> None:
+    """Index a project from Ableton in the background, streaming progress over WebSocket.
+
+    On reconnect after a disconnect, already-indexed tracks are skipped so indexing
+    resumes where it left off.
+    """
+    db = SessionLocal()
+    try:
+        project_repo = ProjectRepository(db)
+        ableton_repo = AbletonRepository(db)
+        indexing_service = IndexingService(ableton_client, project_repo, ableton_repo)
+
+        project_data = await indexing_service.index_project(project_id, websocket)
+
+        sync_service = get_sync_service(ableton_client)
+        sync_service.start_listeners(project_id, project_data)
+
+        logger.info(
+            f"[BG_INDEX] Background indexing completed for project {project_id}"
+        )
+
+    except asyncio.CancelledError:
+        logger.info(f"[BG_INDEX] Indexing task cancelled for project {project_id}")
+        raise
+    except Exception as e:
+        logger.error(
+            f"[BG_INDEX] Indexing failed for project {project_id}: {e}", exc_info=True
+        )
+        try:
+            await websocket.send_json(
+                {"type": "error", "content": f"Indexing failed: {str(e)}"}
+            )
+        except Exception:
+            pass
+    finally:
+        db.close()
+
+
+@app.get("/")
+async def root():
+    logger.info("[GET /] Root endpoint called")
+    return {"message": "Ableton Assistant API"}
 
 
 if __name__ == "__main__":

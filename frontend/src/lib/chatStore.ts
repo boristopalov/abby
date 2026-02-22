@@ -22,6 +22,28 @@ export function addGlobalMessage(message: ChatMessage) {
   globalMessages.update((messages) => [...messages, message]);
 }
 
+export function updateLastGlobalMessage(updater: (msg: ChatMessage) => ChatMessage) {
+  globalMessages.update((messages) => {
+    if (messages.length === 0) return messages;
+    return [...messages.slice(0, -1), updater(messages[messages.length - 1])];
+  });
+}
+
+export function updateGlobalMessageByToolCallId(
+  toolCallId: string,
+  updater: (msg: ChatMessage) => ChatMessage,
+) {
+  globalMessages.update((messages) => {
+    const idx = messages.findLastIndex((m) => m.tool_call_id === toolCallId);
+    if (idx === -1) return messages;
+    return [
+      ...messages.slice(0, idx),
+      updater(messages[idx]),
+      ...messages.slice(idx + 1),
+    ];
+  });
+}
+
 // Get messages for a specific track
 export function getTrackMessages(trackId: string) {
   const chats = get(trackChats);

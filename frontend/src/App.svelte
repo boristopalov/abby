@@ -10,7 +10,7 @@
     } from "./lib/apiCalls";
     import SessionList from "./components/SessionList.svelte";
     import ConnectionStatus from "./components/ConnectionStatus.svelte";
-    import LoadingProgress from "./components/LoadingProgress.svelte";
+    import IndexingBanner from "./components/IndexingBanner.svelte";
     import ParameterPanel from "./components/ParameterPanel.svelte";
     import Chat from "./components/Chat.svelte";
     import {
@@ -20,7 +20,7 @@
     } from "./lib/chatStore";
     import { wsStore } from "./lib/wsStore";
     import {
-        loading,
+        indexing,
         tracks,
         parameterChanges,
         projectState,
@@ -32,9 +32,6 @@
     let showParameterPanel = $state(true);
     let showSessionPanel = $state(false);
     let intervalId: number = $state(0);
-    let isLoading: boolean = $derived(
-        loading.progress !== 100 && projectState.activeProjectId !== null,
-    );
 
     // Project creation state
     let newProjectName = $state("");
@@ -102,7 +99,6 @@
     function selectProject(project: Project) {
         setActiveProject(project.id);
         clearAllMessages();
-        loading.progress = 0;
         wsStore.disconnect();
         wsStore.connect();
     }
@@ -110,7 +106,6 @@
     async function handleReindexProject() {
         if (!projectState.activeProjectId) return;
 
-        loading.progress = 0;
         wsStore.disconnect();
 
         try {
@@ -141,7 +136,6 @@
     function changeProject() {
         wsStore.disconnect();
         setActiveProject(null);
-        loading.progress = 0;
         tracks.tracks = [];
     }
 </script>
@@ -164,7 +158,7 @@
                 </button>
                 <button
                     onclick={handleReindexProject}
-                    disabled={isLoading || !$wsStore.isConnected}
+                    disabled={indexing.isIndexing || !$wsStore.isConnected}
                     class="px-3 py-1 rounded-lg text-sm bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                     Re-index
@@ -200,9 +194,9 @@
                                         {project.name}
                                     </div>
                                     <div class="text-sm text-gray-400">
-                                        Indexed: {new Date(
-                                            project.indexedAt,
-                                        ).toLocaleDateString()}
+                                        {project.indexedAt
+                                            ? `Indexed: ${new Date(project.indexedAt).toLocaleDateString()}`
+                                            : "Not yet indexed"}
                                     </div>
                                 </button>
                             {/each}
@@ -242,8 +236,6 @@
                 </div>
             </div>
         </div>
-    {:else if isLoading}
-        <LoadingProgress loadingProgress={loading.progress} />
     {:else}
         <div class="flex flex-1 min-h-0 relative">
             <SessionList
@@ -254,9 +246,11 @@
                 tracks={tracks.tracks}
             />
 
-            <div class="flex-1 flex flex-col">
-                <!-- Global Chat Interface -->
-                <div class="flex-1 p-4">
+            <div class="flex-1 flex flex-col min-h-0">
+                {#if indexing.isIndexing}
+                    <IndexingBanner progress={indexing.progress} />
+                {/if}
+                <div class="flex-1 p-4 min-h-0">
                     <Chat
                         messages={$globalMessages}
                         onSendMessage={(message) => {

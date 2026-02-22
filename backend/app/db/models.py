@@ -1,5 +1,9 @@
-from sqlalchemy import Boolean, Column, Enum, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import relationship
+from __future__ import annotations
+
+from typing import Any
+
+from sqlalchemy import JSON, Boolean, Float, ForeignKey, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..db import Base
 
@@ -7,15 +11,14 @@ from ..db import Base
 class Project(Base):
     __tablename__ = "projects"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String, unique=True, nullable=False)
-    indexed_at = Column(Integer, nullable=False)
-    tracks = relationship(
-        "Track", back_populates="project", cascade="all, delete-orphan"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, unique=True)
+    indexed_at: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tracks: Mapped[list[Track]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
     )
-    sessions = relationship("ChatSession", back_populates="project")
-    song_context = relationship(
-        "SongContext",
+    sessions: Mapped[list[ChatSession]] = relationship(back_populates="project")
+    song_context: Mapped[SongContext | None] = relationship(
         back_populates="project",
         uselist=False,
         cascade="all, delete-orphan",
@@ -25,185 +28,167 @@ class Project(Base):
 class Track(Base):
     __tablename__ = "tracks"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    project_id = Column(
-        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE")
     )
-    track_index = Column(Integer, nullable=False)
-    name = Column(String, nullable=False)
-    project = relationship("Project", back_populates="tracks")
-    devices = relationship(
-        "Device", back_populates="track", cascade="all, delete-orphan"
+    track_index: Mapped[int] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(String)
+    project: Mapped[Project] = relationship(back_populates="tracks")
+    devices: Mapped[list[Device]] = relationship(
+        back_populates="track", cascade="all, delete-orphan"
     )
-    mixer_state = relationship(
-        "TrackMixerState",
+    mixer_state: Mapped[TrackMixerState | None] = relationship(
         back_populates="track",
         uselist=False,
         cascade="all, delete-orphan",
     )
-    clips = relationship("Clip", back_populates="track", cascade="all, delete-orphan")
+    clips: Mapped[list[Clip]] = relationship(
+        back_populates="track", cascade="all, delete-orphan"
+    )
 
 
 class Device(Base):
     __tablename__ = "devices"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    track_id = Column(
-        Integer, ForeignKey("tracks.id", ondelete="CASCADE"), nullable=False
-    )
-    device_index = Column(Integer, nullable=False)
-    name = Column(String, nullable=False)
-    class_name = Column(String, nullable=False)
-    track = relationship("Track", back_populates="devices")
-    parameters = relationship(
-        "Parameter", back_populates="device", cascade="all, delete-orphan"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    track_id: Mapped[int] = mapped_column(ForeignKey("tracks.id", ondelete="CASCADE"))
+    device_index: Mapped[int] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(String)
+    class_name: Mapped[str] = mapped_column(String)
+    track: Mapped[Track] = relationship(back_populates="devices")
+    parameters: Mapped[list[Parameter]] = relationship(
+        back_populates="device", cascade="all, delete-orphan"
     )
 
 
 class Parameter(Base):
     __tablename__ = "parameters"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    device_id = Column(
-        Integer, ForeignKey("devices.id", ondelete="CASCADE"), nullable=False
-    )
-    param_index = Column(Integer, nullable=False)
-    name = Column(String, nullable=False)
-    value = Column(Float, nullable=False)
-    value_string = Column(
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    device_id: Mapped[int] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"))
+    param_index: Mapped[int] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(String)
+    value: Mapped[float] = mapped_column(Float)
+    value_string: Mapped[str | None] = mapped_column(
         String, nullable=True
     )  # Human-readable value (e.g., "-12 dB")
-    min_value = Column(Float, nullable=False)
-    max_value = Column(Float, nullable=False)
-    device = relationship("Device", back_populates="parameters")
+    min_value: Mapped[float] = mapped_column(Float)
+    max_value: Mapped[float] = mapped_column(Float)
+    device: Mapped[Device] = relationship(back_populates="parameters")
 
 
 class TrackMixerState(Base):
     __tablename__ = "track_mixer_states"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    track_id = Column(
-        Integer,
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    track_id: Mapped[int] = mapped_column(
         ForeignKey("tracks.id", ondelete="CASCADE"),
-        nullable=False,
         unique=True,
     )
-    volume = Column(Float, nullable=False)  # 0-1 normalized
-    panning = Column(Float, nullable=False)  # -1 to 1
-    mute = Column(Boolean, nullable=False)
-    solo = Column(Boolean, nullable=False)
-    arm = Column(Boolean, nullable=False)
-    is_grouped = Column(Boolean, nullable=False)
-    has_midi_input = Column(Boolean, nullable=False)
-    has_audio_output = Column(Boolean, nullable=False)
-    output_routing = Column(String, nullable=True)
-    track = relationship("Track", back_populates="mixer_state")
+    volume: Mapped[float] = mapped_column(Float)  # 0-1 normalized
+    panning: Mapped[float] = mapped_column(Float)  # -1 to 1
+    mute: Mapped[bool] = mapped_column(Boolean)
+    solo: Mapped[bool] = mapped_column(Boolean)
+    arm: Mapped[bool] = mapped_column(Boolean)
+    is_grouped: Mapped[bool] = mapped_column(Boolean)
+    has_midi_input: Mapped[bool] = mapped_column(Boolean)
+    has_audio_output: Mapped[bool] = mapped_column(Boolean)
+    output_routing: Mapped[str | None] = mapped_column(String, nullable=True)
+    track: Mapped[Track] = relationship(back_populates="mixer_state")
 
 
 class Clip(Base):
     __tablename__ = "clips"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    track_id = Column(
-        Integer, ForeignKey("tracks.id", ondelete="CASCADE"), nullable=False
-    )
-    clip_index = Column(Integer, nullable=False)
-    name = Column(String, nullable=False)
-    length_beats = Column(Float, nullable=False)
-    is_midi = Column(Boolean, nullable=False)
-    loop_start = Column(Float, nullable=False, default=0.0)  # in beats
-    loop_end = Column(Float, nullable=False, default=0.0)  # in beats
-    gain = Column(Float, nullable=False, default=0.0)  # raw gain value
-    track = relationship("Track", back_populates="clips")
-    notes = relationship(
-        "ClipNote", back_populates="clip", cascade="all, delete-orphan"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    track_id: Mapped[int] = mapped_column(ForeignKey("tracks.id", ondelete="CASCADE"))
+    clip_index: Mapped[int] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(String)
+    length_beats: Mapped[float] = mapped_column(Float)
+    is_midi: Mapped[bool] = mapped_column(Boolean)
+    loop_start: Mapped[float] = mapped_column(Float, default=0.0)  # in beats
+    loop_end: Mapped[float] = mapped_column(Float, default=0.0)  # in beats
+    gain: Mapped[float] = mapped_column(Float, default=0.0)  # raw gain value
+    track: Mapped[Track] = relationship(back_populates="clips")
+    notes: Mapped[list[ClipNote]] = relationship(
+        back_populates="clip", cascade="all, delete-orphan"
     )
 
 
 class ClipNote(Base):
     __tablename__ = "clip_notes"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    clip_id = Column(
-        Integer, ForeignKey("clips.id", ondelete="CASCADE"), nullable=False
-    )
-    pitch = Column(Integer, nullable=False)  # MIDI pitch 0-127
-    start_time = Column(Float, nullable=False)  # in beats
-    duration = Column(Float, nullable=False)  # in beats
-    velocity = Column(Integer, nullable=False)  # 0-127
-    mute = Column(Boolean, nullable=False, default=False)
-    clip = relationship("Clip", back_populates="notes")
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    clip_id: Mapped[int] = mapped_column(ForeignKey("clips.id", ondelete="CASCADE"))
+    pitch: Mapped[int] = mapped_column(Integer)  # MIDI pitch 0-127
+    start_time: Mapped[float] = mapped_column(Float)  # in beats
+    duration: Mapped[float] = mapped_column(Float)  # in beats
+    velocity: Mapped[int] = mapped_column(Integer)  # 0-127
+    mute: Mapped[bool] = mapped_column(Boolean, default=False)
+    clip: Mapped[Clip] = relationship(back_populates="notes")
 
 
 class SongContext(Base):
     __tablename__ = "song_contexts"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    project_id = Column(
-        Integer,
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=False,
         unique=True,
     )
-    tempo = Column(Float, nullable=False)
-    time_sig_numerator = Column(Integer, nullable=False)
-    time_sig_denominator = Column(Integer, nullable=False)
-    num_tracks = Column(Integer, nullable=False)
-    num_returns = Column(Integer, nullable=False)
-    project = relationship("Project", back_populates="song_context")
+    tempo: Mapped[float] = mapped_column(Float)
+    time_sig_numerator: Mapped[int] = mapped_column(Integer)
+    time_sig_denominator: Mapped[int] = mapped_column(Integer)
+    num_tracks: Mapped[int] = mapped_column(Integer)
+    project: Mapped[Project] = relationship(back_populates="song_context")
 
 
 class ChatSession(Base):
     __tablename__ = "sessions"
 
-    id = Column(String, primary_key=True)
-    name = Column(String, nullable=False)
-    created_at = Column(Integer, nullable=False)
-    project_id = Column(
-        Integer, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String)
+    created_at: Mapped[int] = mapped_column(Integer)
+    project_id: Mapped[int | None] = mapped_column(
+        ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
     )
-    messages = relationship(
-        "Message", back_populates="session", cascade="all, delete-orphan"
-    )
-    project = relationship("Project", back_populates="sessions")
-
-
-class Message(Base):
-    __tablename__ = "messages"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    session_id = Column(
-        String, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False
-    )
-    text = Column(Text, nullable=False)
-    is_user = Column(Boolean, nullable=False)
-    type = Column(Enum("text", "tool", "error", name="message_type"), default="text")
-    timestamp = Column(Integer, nullable=False)
-    session = relationship("ChatSession", back_populates="messages")
+    message_history: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)
+    project: Mapped[Project | None] = relationship(back_populates="sessions")
 
 
 class ParameterChange(Base):
     __tablename__ = "parameter_changes"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    project_id = Column(
-        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE")
     )
-    track_id = Column(Integer, nullable=False)
-    track_name = Column(String, nullable=False)
-    device_id = Column(Integer, nullable=False)
-    device_name = Column(String, nullable=False)
-    param_id = Column(Integer, nullable=False)
-    param_name = Column(String, nullable=False)
-    old_value = Column(Float, nullable=False)
-    new_value = Column(Float, nullable=False)
-    min_value = Column(Float, nullable=False)
-    max_value = Column(Float, nullable=False)
-    timestamp = Column(Integer, nullable=False)
+    track_id: Mapped[int] = mapped_column(Integer)
+    track_name: Mapped[str] = mapped_column(String)
+    device_id: Mapped[int] = mapped_column(Integer)
+    device_name: Mapped[str] = mapped_column(String)
+    param_id: Mapped[int] = mapped_column(Integer)
+    param_name: Mapped[str] = mapped_column(String)
+    old_value: Mapped[float] = mapped_column(Float)
+    new_value: Mapped[float] = mapped_column(Float)
+    min_value: Mapped[float] = mapped_column(Float)
+    max_value: Mapped[float] = mapped_column(Float)
+    timestamp: Mapped[int] = mapped_column(Integer)
 
 
 def init_db():
+    from sqlalchemy import text
+
     from ..db import Base, engine
 
     # Only create tables that don't exist (preserves data between restarts)
     Base.metadata.create_all(engine)
+
+    # Migrate: add message_history column if it doesn't exist yet
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE sessions ADD COLUMN message_history TEXT"))
+            conn.commit()
+        except Exception:
+            pass  # Column already exists

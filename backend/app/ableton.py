@@ -2,43 +2,27 @@ import asyncio
 import math
 import os
 import sys
-from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any, List, Optional
 
 from fastapi import WebSocket
 
 from .logger import logger
+from .models import (
+    ClipInfo,
+    DeviceData,
+    Note,
+    ParameterData,
+    ProjectIndex,
+    SongContext,
+    TrackData,
+    TrackDeviceSummary,
+)
 
 # Add AbletonOSC to Python path
+# TODO: better way of doing this
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "AbletonOSC"))
-from AbletonOSC.client.client import AbletonOSCClient
-
-
-@dataclass
-class ParameterInfo:
-    id: int
-    name: str
-    value: float
-    min: float
-    max: float
-    value_string: Optional[str] = None  # Human-readable value (e.g., "-12 dB")
-
-
-@dataclass
-class DeviceInfo:
-    id: int
-    name: str
-    class_name: str
-    parameters: List[ParameterInfo] = field(default_factory=list)
-
-
-@dataclass
-class TrackInfo:
-    id: int
-    name: str
-    devices: List[DeviceInfo] = field(default_factory=list)
-
+from AbletonOSC.client.client import AsyncAbletonOSCClient
 
 # Unit conversion helpers
 
@@ -122,44 +106,46 @@ def format_bar_length(beats: float, time_sig_numerator: int = 4) -> str:
     return f"{bars} bars"
 
 
-def format_device_summary(track_data: dict) -> str:
+def format_device_summary(track_data: TrackDeviceSummary) -> str:
     """Format track devices as compact summary for LLM."""
-    device_names = [d["name"] for d in track_data.get("devices", [])]
-    return f"Track: {track_data['name']}\nDevices: {', '.join(device_names) or 'None'}"
+    return (
+        f"Track: {track_data.name}\nDevices: {', '.join(track_data.devices) or 'None'}"
+    )
 
 
 def format_device_params(
-    device_name: str, track_name: str, params: List[ParameterInfo]
+    device_name: str, track_name: str, params: list[ParameterData]
 ) -> str:
     """Format device parameters as compact key=value string for LLM."""
     param_strs = [f"{p.name}={p.value_string}" for p in params if p.value_string]
     return f"{device_name} on {track_name}:\n  {', '.join(param_strs)}"
 
 
-def format_device_params_from_db(
-    device_name: str, track_name: str, params: list[dict]
-) -> str:
-    """Format device parameters from DB dicts as compact key=value string for LLM."""
-    param_strs = [
-        f"{p['name']}={p['value_string']}" for p in params if p.get("value_string")
-    ]
-    return f"{device_name} on {track_name}:\n  {', '.join(param_strs)}"
-
-
 class AbletonClient:
     def __init__(self, hostname="127.0.0.1", port=11000, client_port=11001):
         logger.info(f"[ABLETON] Initializing AbletonClient on {hostname}:{port}")
-        self.client = AbletonOSCClient(hostname, port, client_port)
+        self.client = AsyncAbletonOSCClient(hostname, port, client_port)
         self.websocket: Optional[WebSocket] = None
-        self.event_loop: Optional[asyncio.AbstractEventLoop] = None
+
+    async def start(self) -> None:
+        """Start the asyncio UDP listener. Must be called once before any queries."""
+        await self.client.start()
+        self.client.set_handler("/live/error", self._on_osc_error)
+
+    def _on_osc_error(self, address: str, *args) -> None:
+        """Log errors returned by AbletonOSC (e.g. index out of bounds)."""
+        if len(args) == 1 and isinstance(args[0], tuple):
+            args = args[0]
+        logger.error(f"[ABLETON] OSC error from Live: {args}")
 
     async def query_with_retry(
         self, path: str, args: List = [], max_retries: int = 3
     ) -> Any:
         """Query Ableton Live with retry logic"""
+        await self.start()
         for attempt in range(max_retries):
             try:
-                return self.client.query(path, args, timeout=5.0)  # type: ignore
+                return await self.client.query(path, args, timeout=5.0)
             except Exception as e:
                 wait_time = (2**attempt) * 0.5  # 0.5s, 1s, 2s
                 logger.warning(
@@ -215,17 +201,13 @@ class AbletonClient:
             for r in results
         ]
 
-    async def _index_single_track(self, track_index: int, track_name: str) -> dict:
+    async def _index_single_track(self, track_index: int, track_name: str) -> TrackData:
         """Index a single track's devices and parameters."""
         track_num_devices = (
             await self.query_with_retry("/live/track/get/num_devices", [track_index])
         )[1]
 
-        track_data = {
-            "id": track_index,
-            "name": track_name,
-            "devices": [],
-        }
+        devices: list[DeviceData] = []
 
         if track_num_devices > 0:
             device_names = await self.query_with_retry(
@@ -240,50 +222,32 @@ class AbletonClient:
             )
 
             for device_index, device_name in enumerate(device_names[1:]):
-                device_data = {
-                    "id": device_index,
-                    "name": device_name,
-                    "class_name": device_classes[device_index + 1],
-                    "parameters": [],
-                }
-
-                # Get parameters for this device (with value_string for DB storage)
                 params = await self.get_parameters(
                     track_index, device_index, include_value_string=True
                 )
-                device_data["parameters"] = [
-                    {
-                        "id": p.id,
-                        "name": p.name,
-                        "value": p.value,
-                        "value_string": p.value_string,
-                        "min": p.min,
-                        "max": p.max,
-                    }
-                    for p in params
-                ]
-
-                track_data["devices"].append(device_data)
-                logger.info(f"[ABLETON] device_data: {device_data}")
+                device = DeviceData(
+                    id=device_index,
+                    name=device_name,
+                    class_name=device_classes[device_index + 1],
+                    parameters=params,
+                )
+                devices.append(device)
+                logger.info(f"[ABLETON] device_data: {device}")
         else:
             logger.debug(f"[ABLETON] Track {track_name} has no devices")
 
-        return track_data
+        return TrackData(id=track_index, name=track_name, devices=devices)
 
-    async def index_project(self) -> dict:
-        """Query Ableton for all tracks, devices, and parameters.
-
-        Returns a dict with song context and tracks suitable for saving to DB.
-        """
+    async def index_project(self) -> ProjectIndex:
+        """Query Ableton for all tracks, devices, and parameters."""
         logger.info("[ABLETON] Starting project indexing")
         await self._send_progress(0)
 
-        # Get song context first
         song_context = await self.get_song_context()
         logger.info(f"[ABLETON] Song context: {song_context}")
         await self._send_progress(5)
 
-        num_tracks = song_context["num_tracks"]
+        num_tracks = song_context.num_tracks
         logger.info(f"[ABLETON] Found {num_tracks} tracks")
         await self._send_progress(10)
 
@@ -292,35 +256,29 @@ class AbletonClient:
         )
         await self._send_progress(20)
 
-        # index all tracks sequentially
-        # tracks_data: list[dict] = [
-        #     await self._index_single_track(track_index, track_name)
-        #     for track_index, track_name in enumerate(track_names)
-        # ]
-
-        # process in chunks of 5 (5 chosen arbitrarily)
-        tracks_data: list[dict] = []
+        tracks: list[TrackData] = []
         for i in range(0, len(track_names), 5):
-            # Index all tracks in parallel (Note: this is currently disabled as it seems to overwhelm Ableton)
             chunk = track_names[i : i + 5]
             tasks = [
                 self._index_single_track(i + j, track_name)
                 for j, track_name in enumerate(chunk)
             ]
             chunk_results = await asyncio.gather(*tasks)
-            tracks_data.extend(chunk_results)
+            tracks.extend(chunk_results)
 
         await self._send_progress(90)
         logger.info("[ABLETON] Completed project indexing")
-        return {
-            "song_context": song_context,
-            "tracks": tracks_data,
-        }
+        return ProjectIndex(song_context=song_context, tracks=tracks)
 
+    # TODO: websocket transport should not be exposed here
+    # we should instead send this event and let another layer handle the transport
     async def _send_progress(self, progress: int):
         if self.websocket:
             await self.websocket.send_json(
-                {"type": "loading_progress", "content": progress}
+                {
+                    "type": "indexing_status",
+                    "content": {"isIndexing": True, "progress": progress},
+                }
             )
             await asyncio.sleep(0)
             logger.info(f"[ABLETON] Progress update: {progress}%")
@@ -329,27 +287,25 @@ class AbletonClient:
         """Get summary of devices on a track (compact format for LLM consumption)."""
         logger.info(f"[ABLETON] get_track_devices() args: track_id={track_id}")
 
-        # Get track name
         track_name = await self.get_track_name(track_id)
 
-        # Get device count and names (without full parameter indexing)
         track_num_devices = (
             await self.query_with_retry("/live/track/get/num_devices", [track_id])
         )[1]
 
-        devices = []
+        device_names: list[str] = []
         if track_num_devices > 0:
-            device_names = await self.query_with_retry(
+            result = await self.query_with_retry(
                 "/live/track/get/devices/name", [track_id]
             )
-            devices = [{"name": name} for name in device_names[1:]]
+            device_names = list(result[1:])
 
-        track_data = {"name": track_name, "devices": devices}
+        track_data = TrackDeviceSummary(name=track_name, devices=device_names)
         return format_device_summary(track_data)
 
     async def get_parameters(
         self, track_id: int, device_id: int, include_value_string: bool = False
-    ) -> List[ParameterInfo]:
+    ) -> list[ParameterData]:
         logger.info(
             f"[ABLETON] get_parameters() args: track_id={track_id}, device_id={device_id}, include_value_string={include_value_string}"
         )
@@ -367,29 +323,33 @@ class AbletonClient:
             "/live/device/get/parameters/max", [track_id, device_id]
         )
 
-        param_count = len(names[2:])
-        value_strings: List[Optional[str]] = [None] * param_count
-
+        # unfortunately there is no direct value_strings query
+        # that will return all value strings, like there is values
+        num_parameters = await self.query_with_retry(
+            "/live/device/get/num_parameters", [track_id, device_id]
+        )
+        param_count = int(num_parameters[2])
+        value_strings: List[str] = [""] * param_count
         if include_value_string:
             value_strings = await self._get_value_strings(
                 track_id, device_id, param_count
             )
 
         return [
-            ParameterInfo(
+            ParameterData(
                 id=idx,
                 name=names[idx + 2],
                 value=float(values[idx + 2]),
                 min=float(mins[idx + 2]),
                 max=float(maxes[idx + 2]),
-                value_string=value_strings[idx],
+                value_string=value_strings[idx] or None,
             )
             for idx in range(param_count)
         ]
 
     async def set_parameter(
         self, track_id: int, device_id: int, param_id: int, value: float
-    ):
+    ) -> str:
         logger.info(
             f"[ABLETON] set_parameters() args: track_id={track_id}, device_id={device_id}, param_id={param_id}, value={value}"
         )
@@ -425,12 +385,7 @@ class AbletonClient:
             f"[ABLETON] Parameter {device_name}/{param_name} changed from {original_value} to {final_value}"
         )
 
-        return {
-            "device": device_name,
-            "param": param_name,
-            "from": original_value,
-            "to": final_value,
-        }
+        return final_value
 
     async def is_live(self) -> bool:
         try:
@@ -441,10 +396,9 @@ class AbletonClient:
             logger.error("[ABLETON] Failed to connect to Ableton Live")
             return False
 
-    def set_websocket(self, websocket: WebSocket, loop: asyncio.AbstractEventLoop):
+    def set_websocket(self, websocket: WebSocket):
         """Set the websocket for sending updates"""
         self.websocket = websocket
-        self.event_loop = loop
         logger.info("[ABLETON] WebSocket connection established")
 
     def unset_websocket(self):
@@ -476,20 +430,14 @@ class AbletonClient:
         """Register handler for incoming parameter value changes.
 
         Handler signature: handler(address: str, *args)
-        The handler will be called for both value and value_string updates.
+        Only value (float) updates trigger DB writes; value_string push events are ignored.
         """
         self.client.set_handler("/live/device/get/parameter/value", handler)
-        self.client.set_handler("/live/device/get/parameter/value_string", handler)
 
-    async def get_song_context(self) -> dict:
-        """Get high-level song context information.
-
-        Returns:
-            Dict with tempo, time signature, track count, and return track count.
-        """
+    async def get_song_context(self) -> SongContext:
+        """Get high-level song context information."""
         logger.info("[ABLETON] get_song_context()")
 
-        # Query all song-level properties
         tempo_result = await self.query_with_retry("/live/song/get/tempo")
         numerator_result = await self.query_with_retry(
             "/live/song/get/signature_numerator"
@@ -499,93 +447,24 @@ class AbletonClient:
         )
         num_tracks_result = await self.query_with_retry("/live/song/get/num_tracks")
 
-        # Get number of return tracks by probing sends on track 0
-        # (each track has one send per return track)
-        num_sends = await self.get_num_sends(0)
-
-        return {
-            "tempo": float(tempo_result[0]),
-            "time_sig_numerator": int(numerator_result[0]),
-            "time_sig_denominator": int(denominator_result[0]),
-            "num_tracks": int(num_tracks_result[0]),
-            "num_returns": num_sends,
-        }
-
-    async def get_track_mixer_state(self, track_id: int) -> dict:
-        """Get mixer state for a track including volume, pan, sends, routing.
-
-        Args:
-            track_id: The track index.
-
-        Returns:
-            Dict with volume, panning, mute, solo, arm, grouping, I/O info, and sends.
-        """
-        logger.info(f"[ABLETON] get_track_mixer_state() args: track_id={track_id}")
-
-        # Query all mixer properties
-        volume_result = await self.query_with_retry(
-            "/live/track/get/volume", [track_id]
-        )
-        panning_result = await self.query_with_retry(
-            "/live/track/get/panning", [track_id]
-        )
-        mute_result = await self.query_with_retry("/live/track/get/mute", [track_id])
-        solo_result = await self.query_with_retry("/live/track/get/solo", [track_id])
-        arm_result = await self.query_with_retry("/live/track/get/arm", [track_id])
-        is_grouped_result = await self.query_with_retry(
-            "/live/track/get/is_grouped", [track_id]
-        )
-        has_midi_input_result = await self.query_with_retry(
-            "/live/track/get/has_midi_input", [track_id]
-        )
-        has_audio_output_result = await self.query_with_retry(
-            "/live/track/get/has_audio_output", [track_id]
-        )
-        output_routing_result = await self.query_with_retry(
-            "/live/track/get/output_routing_type/display_name", [track_id]
+        return SongContext(
+            tempo=float(tempo_result[0]),
+            time_sig_numerator=int(numerator_result[0]),
+            time_sig_denominator=int(denominator_result[0]),
+            num_tracks=int(num_tracks_result[0]),
         )
 
-        # Get number of sends to know how many return tracks exist
-        num_sends = await self.get_num_sends(track_id)
-
-        # Query each send level
-        sends = []
-        for send_index in range(num_sends):
-            send_result = await self.query_with_retry(
-                "/live/track/get/send", [track_id, send_index]
-            )
-            # Result format: [track_id, send_index, value]
-            sends.append(float(send_result[2]))
-
-        return {
-            "volume": float(volume_result[1]),
-            "panning": float(panning_result[1]),
-            "mute": bool(mute_result[1]),
-            "solo": bool(solo_result[1]),
-            "arm": bool(arm_result[1]),
-            "is_grouped": bool(is_grouped_result[1]),
-            "has_midi_input": bool(has_midi_input_result[1]),
-            "has_audio_output": bool(has_audio_output_result[1]),
-            "output_routing": str(output_routing_result[1]),
-            "sends": sends,
-        }
-
-    async def get_clip_info(self, track_id: int, clip_id: int) -> dict | None:
+    async def get_clip_info(self, track_id: int, clip_id: int) -> ClipInfo | None:
         """Get info for a specific clip.
 
-        Args:
-            track_id: The track index.
-            clip_id: The clip index (clip slot).
-
         Returns:
-            Dict with name, length, type, loop info, and gain, or None if clip doesn't exist.
+            ClipInfo or None if clip doesn't exist.
         """
         logger.info(
             f"[ABLETON] get_clip_info() args: track_id={track_id}, clip_id={clip_id}"
         )
 
         try:
-            # Query clip properties using correct endpoints
             name_result = await self.query_with_retry(
                 "/live/clip/get/name", [track_id, clip_id]
             )
@@ -598,7 +477,6 @@ class AbletonClient:
             gain_result = await self.query_with_retry(
                 "/live/clip/get/gain", [track_id, clip_id]
             )
-            # Loop info via start/end markers
             loop_start_result = await self.query_with_retry(
                 "/live/clip/get/loop_start", [track_id, clip_id]
             )
@@ -607,30 +485,23 @@ class AbletonClient:
             )
 
             # Result format: [track_id, clip_id, value]
-            return {
-                "clip_id": clip_id,
-                "name": str(name_result[2]),
-                "length_beats": float(length_result[2]),
-                "is_midi": bool(is_midi_result[2]),
-                "gain": float(gain_result[2]),
-                "loop_start": float(loop_start_result[2]),
-                "loop_end": float(loop_end_result[2]),
-            }
+            return ClipInfo(
+                clip_id=clip_id,
+                name=str(name_result[2]),
+                length_beats=float(length_result[2]),
+                is_midi=bool(is_midi_result[2]),
+                gain=float(gain_result[2]),
+                loop_start=float(loop_start_result[2]),
+                loop_end=float(loop_end_result[2]),
+            )
         except Exception as e:
             logger.warning(
                 f"[ABLETON] Failed to get clip {clip_id} on track {track_id}: {e}"
             )
             return None
 
-    async def get_clip_notes(self, track_id: int, clip_id: int) -> dict:
+    async def get_clip_notes(self, track_id: int, clip_id: int) -> list[Note]:
         """Get MIDI notes from a clip.
-
-        Args:
-            track_id: The track index.
-            clip_id: The clip index (clip slot).
-
-        Returns:
-            Dict with list of note dicts containing pitch, start_time, duration, velocity, mute.
 
         OSC endpoint: /live/clip/get/notes [track_id, clip_id]
         Returns: [track_id, clip_id, pitch, start_time, duration, velocity, mute, ...]
@@ -639,31 +510,27 @@ class AbletonClient:
             f"[ABLETON] get_clip_notes() args: track_id={track_id}, clip_id={clip_id}"
         )
 
-        # Query notes - returns: [track_id, clip_id, pitch, start_time, duration, velocity, mute, ...]
         notes_result = await self.query_with_retry(
             "/live/clip/get/notes", [track_id, clip_id]
         )
 
-        # Parse the flat list into note dicts
-        # First two elements are track_id and clip_id, rest are note data
         note_data = notes_result[2:] if len(notes_result) > 2 else []
 
-        notes = []
-        # Each note has 5 values: pitch, start_time, duration, velocity, mute
+        notes: list[Note] = []
         i = 0
         while i + 5 <= len(note_data):
             notes.append(
-                {
-                    "pitch": int(note_data[i]),
-                    "start_time": float(note_data[i + 1]),
-                    "duration": float(note_data[i + 2]),
-                    "velocity": int(note_data[i + 3]),
-                    "mute": bool(note_data[i + 4]),
-                }
+                Note(
+                    pitch=int(note_data[i]),
+                    start_time=float(note_data[i + 1]),
+                    duration=float(note_data[i + 2]),
+                    velocity=int(note_data[i + 3]),
+                    mute=bool(note_data[i + 4]),
+                )
             )
             i += 5
 
-        return {"notes": notes}
+        return notes
 
 
 @lru_cache()

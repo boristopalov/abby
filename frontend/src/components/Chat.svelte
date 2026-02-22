@@ -1,6 +1,11 @@
 <script lang="ts">
+  import { marked } from "marked";
   import type { ChatMessage, Track } from "../types";
   import { tracks } from "../lib/state.svelte";
+
+  function renderMarkdown(text: string): string {
+    return marked.parse(text) as string;
+  }
 
   let {
     messages = [],
@@ -101,6 +106,75 @@
   });
 </script>
 
+<style>
+  :global(.message-content p) {
+    margin: 0.25rem 0;
+  }
+  :global(.message-content p:first-child) {
+    margin-top: 0;
+  }
+  :global(.message-content p:last-child) {
+    margin-bottom: 0;
+  }
+  :global(.message-content ul),
+  :global(.message-content ol) {
+    margin: 0.25rem 0;
+    padding-left: 1.25rem;
+  }
+  :global(.message-content ul) {
+    list-style-type: disc;
+  }
+  :global(.message-content ol) {
+    list-style-type: decimal;
+  }
+  :global(.message-content li) {
+    margin: 0.1rem 0;
+  }
+  :global(.message-content code) {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.3rem;
+    font-family: monospace;
+    font-size: 0.85em;
+  }
+  :global(.message-content pre) {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    overflow-x: auto;
+  }
+  :global(.message-content pre code) {
+    background: none;
+    padding: 0;
+  }
+  :global(.message-content strong) {
+    font-weight: 600;
+  }
+  :global(.message-content em) {
+    font-style: italic;
+  }
+  :global(.message-content h1),
+  :global(.message-content h2),
+  :global(.message-content h3) {
+    font-weight: 600;
+    margin: 0.5rem 0 0.25rem;
+  }
+  :global(.message-content h1) { font-size: 1.1em; }
+  :global(.message-content h2) { font-size: 1.05em; }
+  :global(.message-content h3) { font-size: 1em; }
+  :global(.message-content a) {
+    color: #93c5fd;
+    text-decoration: underline;
+  }
+  :global(.message-content blockquote) {
+    border-left: 3px solid rgba(255, 255, 255, 0.2);
+    padding-left: 0.75rem;
+    margin: 0.5rem 0;
+    color: rgba(255, 255, 255, 0.7);
+  }
+</style>
+
 <div class="flex flex-col h-full">
   <!-- Messages area -->
   <div
@@ -111,15 +185,38 @@
       <div
         class="flex {message.isUser ? 'justify-end' : 'justify-start'}"
       >
-        <div
-          class={`max-w-[85%] break-words ${
-            message.isUser
-              ? "bg-blue-500 text-white rounded-2xl rounded-tr-sm"
-              : "bg-gray-700 text-gray-100 rounded-2xl rounded-tl-sm"
-          } px-4 py-2 text-sm`}
-        >
-          {@html message.text}
-        </div>
+        {#if message.type === "function_call"}
+          <div class="max-w-[85%] bg-gray-800 border border-gray-600/50 rounded-lg text-xs font-mono overflow-hidden">
+            <div class="px-3 py-1.5 text-gray-400">
+              <span class="text-amber-400/80">⚙</span>
+              <span class="text-gray-200 ml-1">{message.text}</span>
+              {#if message.arguments && Object.keys(message.arguments).length > 0}
+                <span class="text-gray-500 ml-1">
+                  ({Object.entries(message.arguments).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(", ")})
+                </span>
+              {/if}
+            </div>
+            {#if message.result}
+              <div class="border-t border-gray-700/50 px-3 py-1.5 text-gray-500 max-h-24 overflow-y-auto whitespace-pre-wrap">
+                {message.result}
+              </div>
+            {/if}
+          </div>
+        {:else}
+          <div
+            class={`max-w-[85%] break-words ${
+              message.isUser
+                ? "bg-blue-500 text-white rounded-2xl rounded-tr-sm"
+                : "bg-gray-700 text-gray-100 rounded-2xl rounded-tl-sm message-content"
+            } px-4 py-2 text-sm`}
+          >
+            {#if message.isUser}
+              {message.text}
+            {:else}
+              {@html renderMarkdown(message.text)}
+            {/if}
+          </div>
+        {/if}
       </div>
     {/each}
   </div>

@@ -1,25 +1,40 @@
-import os
-import re
-from functools import lru_cache
-from typing import Any, AsyncGenerator, Dict, List, Tuple
+from dataclasses import dataclass
+from typing import Any, AsyncGenerator, Dict
 
-from google.genai import Client, types
-from pydantic import BaseModel
-
-from .ableton import (
-    AbletonClient,
-    format_bar_length,
-    format_device_params,
-    format_device_params_from_db,
-    format_device_summary,
-    pan_to_string,
-    pitch_to_note_name,
-    volume_to_db,
+from pydantic_ai import (
+    Agent,
+    AgentRunResultEvent,
+    FunctionToolCallEvent,
+    FunctionToolResultEvent,
+    ModelRequest,
+    ModelResponse,
+    PartDeltaEvent,
+    PartStartEvent,
+    RunContext,
+    TextPart,
+    TextPartDelta,
+    ToolCallPart,
+    ToolReturnPart,
+    UserPromptPart,
 )
-from .chat import ChatContext, get_chat_context
-from .db.db_service import DBService
+from pydantic_ai.messages import TextPart as MsgTextPart
+
+from .ableton import AbletonClient
+from .db.ableton_repository import AbletonRepository
+from .db.chat_repository import ChatRepository
+from .events import (
+    AgentEvent,
+    EndEvent,
+    ErrorEvent,
+    TextDeltaEvent,
+    ToolCallEvent,
+    ToolResultEvent,
+)
+from .formatting import (
+    format_device_params,
+    format_device_summary,
+)
 from .logger import logger
-from .shared import GENRE_PROMPT, GENRE_SYSTEM_PROMPTS
 
 SYSTEM_PROMPT = """You are an assistant that helps users with Ableton Live projects. You can view and modify device parameters, and analyze tracks for mixing and creative feedback.
 
@@ -38,13 +53,6 @@ Returns device chain on a track. Use to see what plugins/effects are loaded.
 
 ### get_device_params(track_id, device_id)
 Returns all parameters for a device with human-readable values.
-
-### get_track_clips(track_id)
-Returns list of clips on a track with length, type (MIDI/audio), loop status.
-
-### get_clip_notes(track_id, clip_id)
-Analyzes MIDI clip content: note count, pitch range, velocity, rhythm density.
-Only works on MIDI clips.
 
 ### set_device_param(track_id, device_id, param_id, value)
 Sets a parameter value. Value must be normalized 0.0-1.0.
@@ -76,571 +84,286 @@ Sets a parameter value. Value must be normalized 0.0-1.0.
 """
 
 
-# Tool schemas
-class GetTrackInfoInput(BaseModel):
-    track_id: int
+@dataclass
+class AbletonDeps:
+    ableton_repo: AbletonRepository
+    project_id: int
+    osc: AbletonClient
 
 
-class GetTrackClipsInput(BaseModel):
-    track_id: int
+ableton_agent = Agent(
+    "google-gla:gemini-3-flash-preview",
+    system_prompt=SYSTEM_PROMPT,
+    deps_type=AbletonDeps,
+)
 
 
-class GetClipNotesInput(BaseModel):
-    track_id: int
-    clip_id: int
+# Unused for now
+# @ableton_agent.tool
+# async def get_track_clips(ctx: RunContext[AbletonDeps], track_id: int) -> str:
+#     """Get list of arrangement clips on a track with length, type (MIDI/audio), loop status.
+
+#     Args:
+#         track_id: 0-indexed track position.
+#     """
+#     track_data = ctx.deps.ableton_repo.get_track_devices_summary(
+#         ctx.deps.project_id, track_id
+#     )
+#     if track_data is None:
+#         return f"Track {track_id} not found"
+#     track_name = track_data.name
+#     clips = ctx.deps.ableton_repo.get_track_clips(ctx.deps.project_id, track_id)
+#     if clips is None:
+#         return f"Track {track_id} not found"
+#     if len(clips) == 0:
+#         return f'Track {track_id} "{track_name}" - 0 clips indexed'
+#     lines = [f'Track {track_id} "{track_name}" - {len(clips)} clips:']
+#     for clip in clips:
+#         clip_type = "MIDI" if clip.is_midi else "audio"
+#         length = format_bar_length(clip.length_beats)
+#         loop_len = clip.loop_end - clip.loop_start
+#         loop_status = f"loop={format_bar_length(loop_len)}" if loop_len > 0 else ""
+#         gain_str = f", gain={clip.gain:.2f}" if clip.gain != 0.0 else ""
+#         extras = ", ".join([s for s in [loop_status, gain_str.strip(", ")] if s])
+#         if extras:
+#             extras = ", " + extras
+#         lines.append(
+#             f'  [{clip.clip_index}] "{clip.name}" ({clip_type}, {length}{extras})'
+#         )
+#     return "\n".join(lines)
 
 
-class GetDeviceParamsInput(BaseModel):
-    track_id: int
-    device_id: int
+# Unused for now
+# @ableton_agent.tool
+# async def get_clip_notes(
+#     ctx: RunContext[AbletonDeps], track_id: int, clip_id: int
+# ) -> str:
+#     """Analyze MIDI clip content: note count, pitch range, velocity stats, rhythm density.
+#     Only works on MIDI clips, not audio.
+
+#     Args:
+#         track_id: 0-indexed track position.
+#         clip_id: 0-indexed clip slot from get_track_clips.
+#     """
+#     clip_data = ctx.deps.ableton_repo.get_clip_notes(
+#         ctx.deps.project_id, track_id, clip_id
+#     )
+#     if clip_data is None:
+#         return f"Clip {clip_id} on track {track_id} not found"
+#     notes = clip_data.notes
+#     clip_name = clip_data.clip_name
+#     if len(notes) == 0:
+#         return f'Clip "{clip_name}" (MIDI):\n  No notes'
+#     pitches = [n.pitch for n in notes]
+#     velocities = [n.velocity for n in notes]
+#     min_pitch = min(pitches)
+#     max_pitch = max(pitches)
+#     unique_pitches = len(set(pitches))
+#     min_vel = min(velocities)
+#     max_vel = max(velocities)
+#     avg_vel = sum(velocities) / len(velocities)
+#     max_end_time = max(n.start_time + n.duration for n in notes)
+#     density = len(notes) / max_end_time if max_end_time > 0 else 0
+#     length_str = format_bar_length(max_end_time)
+#     low_note = pitch_to_note_name(min_pitch)
+#     high_note = pitch_to_note_name(max_pitch)
+#     return (
+#         f'Clip "{clip_name}" (MIDI):\n'
+#         f"  Length: {length_str}\n"
+#         f"  Notes: {len(notes)} total, {density:.1f} per beat\n"
+#         f"  Pitch: {low_note} to {high_note} ({unique_pitches} unique)\n"
+#         f"  Velocity: {min_vel}-{max_vel}, avg {avg_vel:.0f}"
+#     )
 
 
-class SetDeviceParamInput(BaseModel):
-    track_id: int
-    device_id: int
-    param_id: int
-    value: float
+@ableton_agent.tool
+async def get_track_devices(ctx: RunContext[AbletonDeps], track_id: int) -> str:
+    """Get a summary of devices on a track. Returns track name and list of device names.
+    Use this to discover what devices exist before drilling into details.
+
+    Args:
+        track_id: 0-indexed track position.
+    """
+    track_data = ctx.deps.ableton_repo.get_track_devices_summary(
+        ctx.deps.project_id, track_id
+    )
+    if track_data is None:
+        return f"Track {track_id} not found"
+    return format_device_summary(track_data)
 
 
-class Agent:
-    def __init__(self, completion_model: Client):
-        logger.info("Initializing Agent with Gemini model")
-        self.completion_model = completion_model
-        self.tools = self._setup_tools()
+@ableton_agent.tool
+async def get_device_params(
+    ctx: RunContext[AbletonDeps], track_id: int, device_id: int
+) -> str:
+    """Get all parameters for a specific device with human-readable values.
+    Use after get_track_devices to inspect a specific device.
 
-    def _setup_tools(self) -> List[types.Tool]:
-        logger.debug("Setting up tool declarations")
-        tool_declarations = [
-            {
-                "name": "get_song_context",
-                "description": "Get project-level info: tempo, time signature, track count, return tracks. Use this first to understand the project structure.",
-                "parameters": {
-                    "type": "OBJECT",
-                    "properties": {},
-                    "required": [],
-                },
-            },
-            {
-                "name": "get_track_info",
-                "description": "Get mixer state for a track: volume (in dB), pan, mute, solo, arm status, routing. Use this to understand a track's role in the mix.",
-                "parameters": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "track_id": {
-                            "type": "NUMBER",
-                            "description": "0-indexed track position",
-                        },
-                    },
-                    "required": ["track_id"],
-                },
-            },
-            {
-                "name": "get_track_clips",
-                "description": "Get list of arrangement clips on a track with length, type (MIDI/audio), loop status. Use to discover clip content before analyzing.",
-                "parameters": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "track_id": {
-                            "type": "NUMBER",
-                            "description": "0-indexed track position",
-                        },
-                    },
-                    "required": ["track_id"],
-                },
-            },
-            {
-                "name": "get_clip_notes",
-                "description": "Analyze MIDI clip content: note count, pitch range, velocity stats, rhythm density. Only works on MIDI clips, not audio.",
-                "parameters": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "track_id": {
-                            "type": "NUMBER",
-                            "description": "0-indexed track position",
-                        },
-                        "clip_id": {
-                            "type": "NUMBER",
-                            "description": "0-indexed clip slot from get_track_clips",
-                        },
-                    },
-                    "required": ["track_id", "clip_id"],
-                },
-            },
-            {
-                "name": "get_track_devices",
-                "description": "Get a summary of devices on a track. Returns track name and list of device names (not parameters). Use this to discover what devices exist before drilling into details.",
-                "parameters": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "track_id": {
-                            "type": "NUMBER",
-                            "description": "0-indexed track position",
-                        },
-                    },
-                    "required": ["track_id"],
-                },
-            },
-            {
-                "name": "get_device_params",
-                "description": "Get all parameters for a specific device with human-readable values (e.g., '-12 dB', '4:1', '100%'). Use after get_track_devices to inspect a specific device.",
-                "parameters": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "track_id": {
-                            "type": "NUMBER",
-                            "description": "0-indexed track position",
-                        },
-                        "device_id": {
-                            "type": "NUMBER",
-                            "description": "0-indexed device position in the track's device chain",
-                        },
-                    },
-                    "required": ["track_id", "device_id"],
-                },
-            },
-            {
-                "name": "set_device_param",
-                "description": "Set a device parameter to a new value. Value must be normalized between 0.0 and 1.0.",
-                "parameters": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "track_id": {
-                            "type": "NUMBER",
-                            "description": "0-indexed track position",
-                        },
-                        "device_id": {
-                            "type": "NUMBER",
-                            "description": "0-indexed device position in the track's device chain",
-                        },
-                        "param_id": {
-                            "type": "NUMBER",
-                            "description": "0-indexed parameter position in the device's parameter list",
-                        },
-                        "value": {
-                            "type": "NUMBER",
-                            "description": "Normalized value between 0.0 and 1.0",
-                        },
-                    },
-                    "required": ["track_id", "device_id", "param_id", "value"],
-                },
-            },
-        ]
-        return [types.Tool(function_declarations=[decl]) for decl in tool_declarations]
+    Args:
+        track_id: 0-indexed track position.
+        device_id: 0-indexed device position in the track's device chain.
+    """
+    device_data = ctx.deps.ableton_repo.get_device_parameters(
+        ctx.deps.project_id, track_id, device_id
+    )
+    if device_data is None:
+        return f"Device {device_id} on track {track_id} not found"
+    return format_device_params(
+        device_data.device_name, device_data.track_name, device_data.parameters
+    )
 
-    async def generate_function_response(
+
+@ableton_agent.tool
+async def set_device_param(
+    ctx: RunContext[AbletonDeps],
+    track_id: int,
+    device_id: int,
+    param_id: int,
+    value: float,
+) -> str:
+    """Set a device parameter to a new value. Value must be normalized between 0.0 and 1.0.
+
+    Args:
+        track_id: 0-indexed track position.
+        device_id: 0-indexed device position in the track's device chain.
+        param_id: 0-indexed parameter position in the device's parameter list.
+        value: Normalized value between 0.0 and 1.0.
+
+    Returns: The updated value as a string.
+    """
+    return await ctx.deps.osc.set_parameter(track_id, device_id, param_id, value)
+
+
+class ChatService:
+    def __init__(
         self,
-        osc_handler: AbletonClient,
-        function_call: types.FunctionCall,
-        db_service: DBService,
-        project_id: int,
-    ) -> types.Part:
-        """Handle function calls and generate responses using the new Gemini API format.
-
-        Reads (get_track_devices, get_device_params) use the DB for fast access.
-        Writes (set_device_param) still go through OSC to Ableton.
-        """
-        try:
-            function_name = function_call.name
-            function_args = function_call.args
-            logger.info(
-                f"Handling function call: {function_name} with args: {function_args}"
-            )
-
-            if function_name == "get_song_context":
-                # Read from DB
-                context_data = db_service.get_song_context(project_id)
-                if context_data is None:
-                    result = "Song context not found"
-                else:
-                    result = (
-                        f"Project Context:\n"
-                        f"  Tempo: {context_data['tempo']} BPM\n"
-                        f"  Time Signature: {context_data['time_sig_numerator']}/{context_data['time_sig_denominator']}\n"
-                        f"  Tracks: {context_data['num_tracks']}\n"
-                        f"  Return Tracks: {context_data['num_returns']}"
-                    )
-
-            elif function_name == "get_track_info":
-                args = GetTrackInfoInput(**function_args)
-                # Get track name from devices summary
-                track_data = db_service.get_track_devices_summary(
-                    project_id, args.track_id
-                )
-                if track_data is None:
-                    result = f"Track {args.track_id} not found"
-                else:
-                    track_name = track_data["name"]
-                    mixer_state = db_service.get_track_mixer_state(
-                        project_id, args.track_id
-                    )
-                    if mixer_state is None:
-                        result = f"Mixer state for track {args.track_id} not found"
-                    else:
-                        volume_db = volume_to_db(mixer_state["volume"])
-                        pan_str = pan_to_string(mixer_state["panning"])
-                        mute_str = "On" if mixer_state["mute"] else "Off"
-                        solo_str = "On" if mixer_state["solo"] else "Off"
-                        arm_str = "Yes" if mixer_state["arm"] else "No"
-                        track_type = (
-                            "MIDI" if mixer_state["has_midi_input"] else "Audio"
-                        )
-                        output = mixer_state.get("output_routing") or "Master"
-                        grouped_str = "Yes" if mixer_state["is_grouped"] else "No"
-                        result = (
-                            f'Track {args.track_id}: "{track_name}"\n'
-                            f"  Volume: {volume_db}, Pan: {pan_str}\n"
-                            f"  Mute: {mute_str}, Solo: {solo_str}, Armed: {arm_str}\n"
-                            f"  Type: {track_type} -> {output}\n"
-                            f"  Grouped: {grouped_str}"
-                        )
-
-            elif function_name == "get_track_clips":
-                args = GetTrackClipsInput(**function_args)
-                # Get track name from devices summary
-                track_data = db_service.get_track_devices_summary(
-                    project_id, args.track_id
-                )
-                if track_data is None:
-                    result = f"Track {args.track_id} not found"
-                else:
-                    track_name = track_data["name"]
-                    clips = db_service.get_track_clips(project_id, args.track_id)
-                    if clips is None:
-                        result = f"Track {args.track_id} not found"
-                    elif len(clips) == 0:
-                        result = (
-                            f'Track {args.track_id} "{track_name}" - 0 clips indexed'
-                        )
-                    else:
-                        lines = [
-                            f'Track {args.track_id} "{track_name}" - {len(clips)} clips:'
-                        ]
-                        for clip in clips:
-                            clip_type = "MIDI" if clip["is_midi"] else "audio"
-                            length = format_bar_length(clip["length_beats"])
-                            # Determine if looped: loop region is defined
-                            loop_len = clip["loop_end"] - clip["loop_start"]
-                            loop_status = (
-                                f"loop={format_bar_length(loop_len)}"
-                                if loop_len > 0
-                                else ""
-                            )
-                            gain_str = (
-                                f", gain={clip['gain']:.2f}"
-                                if clip["gain"] != 0.0
-                                else ""
-                            )
-                            extras = ", ".join(
-                                [s for s in [loop_status, gain_str.strip(", ")] if s]
-                            )
-                            if extras:
-                                extras = ", " + extras
-                            lines.append(
-                                f'  [{clip["clip_index"]}] "{clip["name"]}" ({clip_type}, {length}{extras})'
-                            )
-                        result = "\n".join(lines)
-
-            elif function_name == "get_clip_notes":
-                args = GetClipNotesInput(**function_args)
-                clip_data = db_service.get_clip_notes(
-                    project_id, args.track_id, args.clip_id
-                )
-                if clip_data is None:
-                    result = f"Clip {args.clip_id} on track {args.track_id} not found"
-                else:
-                    notes = clip_data["notes"]
-                    clip_name = clip_data["clip_name"]
-                    if len(notes) == 0:
-                        result = f'Clip "{clip_name}" (MIDI):\n  No notes'
-                    else:
-                        # Compute derived metrics
-                        pitches = [n["pitch"] for n in notes]
-                        velocities = [n["velocity"] for n in notes]
-                        min_pitch = min(pitches)
-                        max_pitch = max(pitches)
-                        unique_pitches = len(set(pitches))
-                        min_vel = min(velocities)
-                        max_vel = max(velocities)
-                        avg_vel = sum(velocities) / len(velocities)
-
-                        # Compute length in beats from note positions
-                        max_end_time = max(
-                            n["start_time"] + n["duration"] for n in notes
-                        )
-                        # Note density = notes per beat
-                        density = len(notes) / max_end_time if max_end_time > 0 else 0
-
-                        length_str = format_bar_length(max_end_time)
-                        low_note = pitch_to_note_name(min_pitch)
-                        high_note = pitch_to_note_name(max_pitch)
-
-                        result = (
-                            f'Clip "{clip_name}" (MIDI):\n'
-                            f"  Length: {length_str}\n"
-                            f"  Notes: {len(notes)} total, {density:.1f} per beat\n"
-                            f"  Pitch: {low_note} to {high_note} ({unique_pitches} unique)\n"
-                            f"  Velocity: {min_vel}-{max_vel}, avg {avg_vel:.0f}"
-                        )
-
-            elif function_name == "get_track_devices":
-                track_id = int(function_args["track_id"])
-                # Read from DB instead of OSC
-                track_data = db_service.get_track_devices_summary(project_id, track_id)
-                if track_data is None:
-                    result = f"Track {track_id} not found"
-                else:
-                    result = format_device_summary(track_data)
-
-            elif function_name == "get_device_params":
-                args = GetDeviceParamsInput(**function_args)
-                # Read from DB instead of OSC
-                device_data = db_service.get_device_parameters(
-                    project_id, args.track_id, args.device_id
-                )
-                if device_data is None:
-                    result = (
-                        f"Device {args.device_id} on track {args.track_id} not found"
-                    )
-                else:
-                    device_name, track_name, params = device_data
-                    result = format_device_params_from_db(
-                        device_name, track_name, params
-                    )
-
-            elif function_name == "set_device_param":
-                args = SetDeviceParamInput(**function_args)
-                # Writes still go through OSC
-                result = await osc_handler.set_parameter(
-                    args.track_id, args.device_id, args.param_id, args.value
-                )
-
-            else:
-                raise ValueError(f"Unknown function: {function_name}")
-
-            return types.Part.from_function_response(
-                name=function_name, response={"result": result}
-            )
-
-        except Exception as e:
-            logger.error(f"Error handling function call: {str(e)}")
-            return types.Part.from_function_response(
-                name=function_call.name, response={"error": str(e)}
-            )
+        chat_repo: ChatRepository,
+        ableton_repo: AbletonRepository,
+        ableton: AbletonClient,
+    ):
+        self.chat_repo = chat_repo
+        self.ableton_repo = ableton_repo
+        self.ableton = ableton
 
     async def process_message(
         self,
-        context: ChatContext,
+        session_id: str,
+        project_id: int,
         message: Dict[str, Any],
-        db_service: DBService,
-        osc_client: AbletonClient,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
-        """Process messages and yield responses"""
-        if not context.current_session_id:
-            logger.error(
-                f"No active session found for ID: {context.current_session_id}"
-            )
-            yield {"type": "error", "content": "No active session"}
+    ) -> AsyncGenerator[AgentEvent, None]:
+        """Process a message and yield response chunks for the websocket."""
+        if not self.chat_repo.get_chat_session(session_id):
+            logger.error(f"Session not found: {session_id}")
+            yield ErrorEvent(content="No active session")
             return
 
-        session = db_service.get_chat_session(context.current_session_id)
-        if not session:
-            logger.error(
-                f"No active session found for ID: {context.current_session_id}"
-            )
-            yield {"type": "error", "content": "No active session"}
-            return
+        logger.info(f"Processing message for session {session_id}")
 
-        logger.info(f"Processing message for session {context.current_session_id}")
+        deps = AbletonDeps(
+            ableton_repo=self.ableton_repo,
+            project_id=project_id,
+            osc=self.ableton,
+        )
 
-        # Add message to context and database
-        if message["role"] == "user":
-            logger.info(f"Adding user message to database: {message}")
-            context.add_message(
-                types.Content(
-                    role="user", parts=[types.Part.from_text(text=message["content"])]
-                )
-            )
-            db_service.add_message(
-                context.current_session_id,
-                {"text": message["content"], "isUser": True, "type": "text"},
-            )
-
-        continue_loop = True
-        while continue_loop:
-            try:
-                response_text = ""
-                has_function_call = False
-
-                messages = context.get_messages()
-                logger.info(
-                    f"Generating response from Gemini - "
-                    f"session={context.current_session_id}, "
-                    f"message_count={len(messages)}, "
-                    f"last_role={messages[-1].role if messages else 'none'}"
-                )
-                # Debug: log message structure
-                for i, msg in enumerate(messages):
-                    parts_info = []
-                    if msg.parts:
-                        for p in msg.parts:
-                            if hasattr(p, "text") and p.text:
-                                parts_info.append(f"text:{p.text[:30]}...")
-                            elif hasattr(p, "function_call") and p.function_call:
-                                sig = getattr(p, "thought_signature", None)
-                                parts_info.append(
-                                    f"fn_call:{p.function_call.name}(sig={sig is not None})"
-                                )
-                            elif (
-                                hasattr(p, "function_response") and p.function_response
-                            ):
-                                parts_info.append(f"fn_resp:{p.function_response.name}")
-                    logger.info(f"  msg[{i}] role={msg.role} parts={parts_info}")
-
-                stream = self.completion_model.models.generate_content_stream(
-                    model="gemini-3-flash-preview",
-                    contents=messages,
-                    config=types.GenerateContentConfig(
-                        system_instruction=SYSTEM_PROMPT,
-                        tools=self.tools,
-                        max_output_tokens=2048,
-                    ),
-                )
-
-                # Accumulate all parts from the stream before processing
-                # This is needed because parallel function calls come in separate chunks
-                # but must be combined into a single Content (only first has thought_signature)
-                all_parts = []
-                first_fc_content = None  # Will hold the content with thought_signature
-
-                for chunk in stream:
-                    logger.info(f"CHUNK: {chunk}")
+        try:
+            async for event in ableton_agent.run_stream_events(
+                message["content"],
+                message_history=self.chat_repo.load_message_history(session_id),
+                deps=deps,
+            ):
+                if isinstance(event, FunctionToolCallEvent):
+                    logger.info(
+                        f"Tool call: {event.part.tool_name}; Tool call ID: {event.tool_call_id}"
+                    )
+                    yield ToolCallEvent(
+                        content=event.part.tool_name,
+                        arguments=event.part.args_as_dict(),
+                        tool_call_id=event.tool_call_id,
+                    )
+                elif isinstance(event, FunctionToolResultEvent):
+                    if isinstance(event.result, ToolReturnPart):
+                        logger.info(
+                            f"Tool result: {event.result.tool_name}; Tool call ID: {event.tool_call_id}"
+                        )
+                        yield ToolResultEvent(
+                            tool_call_id=event.tool_call_id,
+                            content=event.result.model_response_str(),
+                        )
+                elif isinstance(event, PartStartEvent):
+                    if isinstance(event.part, TextPart) and event.part.content:
+                        yield TextDeltaEvent(content=event.part.content)
+                elif isinstance(event, PartDeltaEvent):
                     if (
-                        not chunk.candidates
-                        or not chunk.candidates[0].content
-                        or not chunk.candidates[0].content.parts
+                        isinstance(event.delta, TextPartDelta)
+                        and event.delta.content_delta
                     ):
-                        continue
+                        yield TextDeltaEvent(content=event.delta.content_delta)
+                elif isinstance(event, AgentRunResultEvent):
+                    self.chat_repo.save_message_history(
+                        session_id, event.result.all_messages()
+                    )
 
-                    for part in chunk.candidates[0].content.parts:
-                        if hasattr(part, "text") and part.text:
-                            logger.debug(f"Received text: {part.text[:50]}...")
-                            response_text += part.text
-                            yield {"type": "text", "content": part.text}
-                        elif hasattr(part, "function_call") and part.function_call:
-                            has_function_call = True
-                            all_parts.append(part)
-                            # Keep the first function call content (has thought_signature)
-                            if first_fc_content is None:
-                                first_fc_content = chunk.candidates[0].content
-                            yield {
-                                "type": "function_call",
-                                "content": part.function_call.name,
+        except Exception as e:
+            logger.exception(f"Error in process_message: {e} | session={session_id}")
+            yield ErrorEvent(content="Something went wrong. Please try again.")
+            return
+
+        yield EndEvent()
+
+    def get_messages_for_display(self, session_id: str) -> list[dict]:
+        """Extract all displayable messages from pydantic-ai message history.
+
+        Returns user text, assistant text, tool calls, and tool results in order.
+        Tool results are merged into their corresponding tool call entry (matched by
+        tool_call_id), mirroring how they are rendered in the real-time stream.
+        """
+        model_messages = self.chat_repo.load_message_history(session_id)
+        result: list[dict] = []
+        # Keyed by tool_call_id so we can attach results to their call entry later.
+        tool_call_by_id: dict[str, dict] = {}
+
+        for i, msg in enumerate(model_messages):
+            if isinstance(msg, ModelRequest):
+                for part in msg.parts:
+                    if isinstance(part, UserPromptPart):
+                        result.append(
+                            {
+                                "id": i,
+                                "text": part.content,
+                                "isUser": True,
+                                "type": "text",
+                                "timestamp": int(msg.timestamp.timestamp() * 1000),  # pyright: ignore
                             }
-
-                # Process all collected function calls after stream ends
-                if all_parts:
-                    # Add any accumulated text before the function calls
-                    if response_text:
-                        context.add_message(
-                            types.Content(
-                                role="model",
-                                parts=[types.Part.from_text(text=response_text)],
-                            )
                         )
-                        db_service.add_message(
-                            context.current_session_id,
-                            {"text": response_text, "isUser": False, "type": "text"},
-                        )
-                        response_text = ""
-
-                    # Build combined Content with all function call parts
-                    # Use parts from all chunks, preserving thought_signature from first
-                    combined_content = types.Content(role="model", parts=all_parts)
-                    context.add_message(combined_content)
-
-                    # Execute all function calls and collect responses
-                    function_response_parts = []
-                    for part in all_parts:
-                        function_response = await self.generate_function_response(
-                            osc_client,
-                            part.function_call,
-                            db_service,
-                            context.current_project_id,
-                        )
-                        logger.info(f"function response: {str(function_response)}")
-                        function_response_parts.append(function_response)
-
-                    # Add all function responses in a single Content
-                    context.add_message(
-                        types.Content(role="user", parts=function_response_parts)
+                    elif isinstance(part, ToolReturnPart):
+                        entry = tool_call_by_id.get(part.tool_call_id)
+                        if entry is not None:
+                            entry["result"] = part.model_response_str()
+            elif isinstance(msg, ModelResponse):
+                text_parts: list[str] = []
+                for part in msg.parts:
+                    if isinstance(part, MsgTextPart):
+                        text_parts.append(part.content)
+                    elif isinstance(part, ToolCallPart):
+                        entry = {
+                            "id": i,
+                            "text": part.tool_name,
+                            "isUser": False,
+                            "type": "function_call",
+                            "arguments": part.args_as_dict(),
+                            "tool_call_id": part.tool_call_id,
+                            "timestamp": int(msg.timestamp.timestamp() * 1000),
+                        }
+                        result.append(entry)
+                        tool_call_by_id[part.tool_call_id] = entry
+                if text_parts:
+                    result.append(
+                        {
+                            "id": i,
+                            "text": "".join(text_parts),
+                            "isUser": False,
+                            "type": "text",
+                            "timestamp": int(msg.timestamp.timestamp() * 1000),
+                        }
                     )
-
-                # Store the final text response if we have one
-                if response_text:
-                    context.add_message(
-                        types.Content(
-                            role="model",
-                            parts=[types.Part.from_text(text=response_text)],
-                        )
-                    )
-                    db_service.add_message(
-                        context.current_session_id,
-                        {"text": response_text, "isUser": False, "type": "text"},
-                    )
-
-                # Exit loop if no function calls were made
-                if not has_function_call:
-                    continue_loop = False
-
-                # Signal end of current iteration
-                yield {"type": "end_message", "content": "<|END_MESSAGE|>"}
-
-            except Exception as e:
-                logger.exception(
-                    f"Error in process_message: {str(e)} | "
-                    f"session={context.current_session_id}, "
-                )
-                yield {
-                    "type": "error",
-                    "content": "Something went wrong. Please try again.",
-                }
-                continue_loop = False
-
-    # def generate_random_genre(self) -> Tuple[str, str]:
-    #     try:
-    #         logger.info("Generating random genre")
-    #         response = self.completion_model.models.generate_content(
-    #             model="gemini-2.0-flash-exp",
-    #             contents=[types.Content(parts=[types.Part.from_text(GENRE_PROMPT)])],
-    #             config=types.GenerateContentConfig(max_output_tokens=2048),
-    #         )
-
-    #         if not response.candidates:
-    #             logger.error("No response candidates from Gemini")
-    #             raise ValueError("No response from model")
-
-    #         content = response.candidates[0].content.parts[0].text
-
-    #         genre_match = re.search(r'GENRE_NAME:\s*"([^"]+)"', content)
-    #         prompt_match = re.search(r'PROMPT:\s*"""\n([\s\S]+?)"""', content)
-
-    #         if not genre_match or not prompt_match:
-    #             logger.error("Failed to parse genre response")
-    #             raise ValueError("Failed to parse genre response")
-
-    #         genre_name = genre_match.group(1)
-    #         prompt = prompt_match.group(1)
-    #         logger.info(f"Generated new genre: {genre_name}")
-
-    #         # Add the new genre to the GENRE_SYSTEM_PROMPTS
-    #         GENRE_SYSTEM_PROMPTS[genre_name] = prompt
-
-    #         return genre_name, prompt
-    #     except Exception as e:
-    #         logger.error(f"Error generating random genre: {str(e)}")
-    #         raise
-
-
-@lru_cache()
-def get_agent() -> Agent:
-    return Agent(Client(api_key=os.getenv("GEMINI_API_KEY")))
+        return result

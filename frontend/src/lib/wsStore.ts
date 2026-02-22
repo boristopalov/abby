@@ -3,10 +3,12 @@ import { activeSessionId } from "./sessionStore.ts";
 import {
   globalMessages,
   addGlobalMessage,
+  updateLastGlobalMessage,
+  updateGlobalMessageByToolCallId,
   clearAllMessages,
 } from "./chatStore.ts";
 import { getSessionMessages } from "./apiCalls.ts";
-import { loading, parameterChanges, tracks, projectState } from "./state.svelte.ts";
+import { loading, indexing, parameterChanges, tracks, projectState } from "./state.svelte.ts";
 import type { ParameterChange, Track } from "../types.d.ts";
 
 interface WebSocketState {
@@ -19,14 +21,18 @@ interface WebSocketMessage {
   type:
     | "text"
     | "function_call"
+    | "function_result"
     | "end_message"
     | "confirmation"
     | "error"
     | "loading_progress"
+    | "indexing_status"
     | "parameter_change"
     | "tracks"
     | "track";
   content: string | number | ParameterChange | Track[] | object;
+  arguments?: Record<string, unknown>;
+  tool_call_id?: string;
 }
 
 const createWebSocketStore = () => {
@@ -37,14 +43,7 @@ const createWebSocketStore = () => {
   });
 
   let currentMessage = "";
-
-  function formatMessage(text: string): string {
-    return text
-      .trim()
-      .replace(/\n/g, "<br>")
-      .replace(/ {2,}/g, (match) => "&nbsp;".repeat(match.length))
-      .replace(/\t/g, "&nbsp;&nbsp;&nbsp;&nbsp;");
-  }
+  let isStreaming = false;
 
   function handleWebSocketMessage(data: WebSocketMessage) {
     console.log("Message:", data);
@@ -58,37 +57,62 @@ const createWebSocketStore = () => {
         tracks.tracks.push(data.content as Track);
         break;
       case "end_message":
-        if (currentMessage) {
+        isStreaming = false;
+        currentMessage = "";
+        break;
+
+      case "text": {
+        currentMessage += data.content as string;
+        if (!isStreaming) {
           addGlobalMessage({
-            text: formatMessage(currentMessage),
+            text: currentMessage,
             isUser: false,
             type: "text",
           });
-          currentMessage = "";
+          isStreaming = true;
+        } else {
+          updateLastGlobalMessage((msg) => ({
+            ...msg,
+            text: currentMessage,
+          }));
         }
         break;
-
-      case "text":
-        currentMessage += data.content;
-        break;
+      }
       case "loading_progress":
-        loading.progress = data.content as number;
+        // no-op: superseded by indexing_status
         break;
+      case "indexing_status": {
+        const status = data.content as { isIndexing: boolean; progress?: number };
+        indexing.isIndexing = status.isIndexing;
+        if (status.progress !== undefined) indexing.progress = status.progress;
+        break;
+      }
       case "parameter_change":
         parameterChanges.changes.push(data.content as ParameterChange);
         break;
       case "function_call":
         update((state) => ({ ...state, isModelThinking: true }));
         addGlobalMessage({
-          text: formatMessage(data.content as string),
+          text: data.content as string,
           isUser: false,
           type: "function_call",
+          arguments: data.arguments,
+          tool_call_id: data.tool_call_id,
         });
+        break;
+
+      case "function_result":
+        if (data.tool_call_id) {
+          updateGlobalMessageByToolCallId(data.tool_call_id, (msg) => ({
+            ...msg,
+            result: data.content as string,
+          }));
+        }
         break;
 
       case "error":
         addGlobalMessage({
-          text: formatMessage(data.content as string),
+          text: data.content as string,
           isUser: false,
           type: "error",
         });

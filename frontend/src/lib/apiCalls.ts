@@ -77,6 +77,9 @@ export async function setDefaultGenre(genre: string): Promise<boolean> {
 export async function getRecentParameterChanges(
   projectId: number,
 ): Promise<ParameterChange[]> {
+  if (projectId == null) {
+    return [];
+  }
   const response = await fetch(
     `${SERVER_BASE_URI}/parameter-changes?projectId=${projectId}&since=${Date.now()}`,
   );

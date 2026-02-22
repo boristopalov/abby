@@ -9,8 +9,14 @@ dependencies = [
     "fish-audio-sdk>=1.2.0",
     "google-genai>=1.56.0",
     "pydantic>=2.12.5",
+    "pydantic-ai>=1.62.0",
     "python-dotenv>=1.2.1",
     "sqlalchemy>=2.0.45",
     "uvicorn>=0.40.0",
     "websockets>=15.0.1",
+]
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.38.1",
 ]
