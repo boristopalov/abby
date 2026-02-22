@@ -71,10 +71,6 @@ Sets a parameter value. Value must be normalized 0.0-1.0.
 3. get_track_devices(track_id) → see processing chain
 4. get_device_params() for specific devices → check settings
 
-**Creative feedback on a MIDI track:**
-1. get_track_clips(track_id) → find clips
-2. get_clip_notes(track_id, clip_id) → analyze melody/rhythm
-3. Provide feedback on note choices, velocity, rhythm
 
 **When giving feedback:**
 - Reference specific values ("your compressor ratio is 8:1")
