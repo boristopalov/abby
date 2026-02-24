@@ -20,13 +20,13 @@ from pydantic_ai import (
 )
 from pydantic_ai.messages import TextPart as MsgTextPart
 
-from .ableton import AbletonClient
+from .ableton_client import AbletonClient
 from .db.ableton_repository import AbletonRepository
 from .db.chat_repository import ChatRepository
 from .events import (
     AgentEvent,
     EndEvent,
-    ErrorEvent,
+    ModelErrorEvent,
     TextDeltaEvent,
     ToolCallEvent,
     ToolResultEvent,
@@ -88,6 +88,7 @@ class AbletonDeps:
     osc: AbletonClient
 
 
+# TODO: swap to claude
 ableton_agent = Agent(
     "google-gla:gemini-3-flash-preview",
     system_prompt=SYSTEM_PROMPT,
@@ -252,7 +253,7 @@ class ChatService:
         run_id = str(uuid.uuid4())
         if not self.chat_repo.get_chat_session(session_id):
             logger.error(f"Session not found: {session_id}")
-            yield ErrorEvent(run_id=run_id, content="No active session")
+            yield ModelErrorEvent(run_id=run_id, content="No active session")
             return
 
         logger.info(f"Processing message for session {session_id}")
@@ -307,7 +308,7 @@ class ChatService:
 
         except Exception as e:
             logger.exception(f"Error in process_message: {e} | session={session_id}")
-            yield ErrorEvent(
+            yield ModelErrorEvent(
                 run_id=run_id, content="Something went wrong. Please try again."
             )
             return

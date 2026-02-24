@@ -8,6 +8,7 @@ dependencies = [
     "fastapi[standard]>=0.128.0",
     "fish-audio-sdk>=1.2.0",
     "google-genai>=1.56.0",
+    "posthog>=7.9.3",
     "pydantic>=2.12.5",
     "pydantic-ai>=1.62.0",
     "python-dotenv>=1.2.1",
@@ -19,4 +20,10 @@ dependencies = [
 [dependency-groups]
 dev = [
     "basedpyright>=1.38.1",
+    "pytest>=9.0.2",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "write: marks tests that mutate Ableton state (deselect with '-m \"not write\"')",
 ]

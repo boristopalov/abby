@@ -3,7 +3,7 @@ import time
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from .ableton import AbletonClient, get_ableton_client
+from .ableton_client import AbletonClient, get_ableton_client
 from .agent import ChatService
 from .analytics import AnalyticsService, get_analytics_service
 from .db.ableton_repository import AbletonRepository, get_ableton_repository
@@ -168,6 +168,7 @@ async def create_project(
     try:
         logger.info(f"[POST /api/projects] Creating project: {request.name}")
 
+        # TODO: no need to throw an error here :D
         existing = project_repo.get_project_by_name(request.name)
         if existing:
             raise HTTPException(

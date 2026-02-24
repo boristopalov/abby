@@ -1,6 +1,6 @@
 """Sync service to keep DB in sync with Ableton via OSC listeners."""
 
-from .ableton import AbletonClient
+from .ableton_client import AbletonClient
 from .db import SessionLocal
 from .db.ableton_repository import AbletonRepository
 from .logger import logger
@@ -26,13 +26,13 @@ class SyncService:
             project_id: The project ID in the DB
             project_data: List of TrackData with devices and parameters
         """
-        if self.active_project_id is not None:
-            self.stop_listeners()
+        # if self.active_project_id is not None:
+        #     self.stop_listeners()
 
-        self.active_project_id = project_id
-        logger.info(f"[SYNC] Starting parameter listeners for project {project_id}")
+        # self.active_project_id = project_id
+        # logger.info(f"[SYNC] Starting parameter listeners for project {project_id}")
 
-        self.client.set_parameter_change_handler(self._on_parameter_changed)
+        # self.client.set_parameter_change_handler(self._on_parameter_changed)
 
         # for track_data in project_data:
         #     track_id = track_data.id

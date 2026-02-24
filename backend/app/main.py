@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from .ableton import AbletonClient, get_ableton_client
+from .ableton_client import AbletonClient, get_ableton_client
 from .agent import ChatService
 from .analytics import AnalyticsService, get_analytics_service
 from .db import SessionLocal
@@ -15,6 +15,13 @@ from .db.ableton_repository import AbletonRepository, get_ableton_repository
 from .db.chat_repository import ChatRepository, get_chat_repository
 from .db.models import init_db
 from .db.project_repository import ProjectRepository, get_project_repository
+from .events import (
+    AppEvent,
+    EventSender,
+    IndexErrorEvent,
+    IndexingStatusEvent,
+    TracksEvent,
+)
 from .indexing import IndexingService
 from .logger import logger
 from .routes import router as api_router
@@ -38,6 +45,13 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(api_router, prefix="/api")
+
+
+def _make_sender(ws: WebSocket) -> EventSender:
+    async def send(event: AppEvent) -> None:
+        await ws.send_json(event.model_dump(exclude_none=True))
+
+    return send
 
 
 @app.websocket("/ws")
@@ -78,7 +92,7 @@ async def websocket_endpoint(
         )
 
         await ableton_client.start()
-        ableton_client.set_websocket(websocket)
+        send = _make_sender(websocket)
 
         existing_session = chat_repo.get_chat_session(sessionId)
         is_new_session = existing_session is None
@@ -94,28 +108,20 @@ async def websocket_endpoint(
         )
 
         if project.indexed_at is None:
-            await websocket.send_json(
-                {
-                    "type": "indexing_status",
-                    "content": {"isIndexing": True, "progress": 0},
-                }
-            )
+            await send(IndexingStatusEvent(content=True))
             indexing_task = asyncio.create_task(
-                _background_index(websocket, ableton_client, projectId, sessionId, analytics)
+                _background_index(send, ableton_client, projectId, sessionId, analytics)
             )
         else:
-            await websocket.send_json(
-                {"type": "indexing_status", "content": {"isIndexing": False}}
+            tracks_for_frontend = ableton_repo.get_project_tracks_for_frontend(
+                projectId
             )
-            tracks_for_frontend = ableton_repo.get_project_tracks_for_frontend(projectId)
-            await websocket.send_json(
-                {
-                    "type": "tracks",
-                    "content": [
-                        t.model_dump(by_alias=True) for t in tracks_for_frontend
-                    ],
-                }
+            await send(
+                TracksEvent(
+                    content=[t.model_dump(by_alias=True) for t in tracks_for_frontend]
+                )
             )
+            await send(IndexingStatusEvent(content=False))
             sync_service = get_sync_service(ableton_client)
             project_data = ableton_repo.load_project_structure(projectId)
             if project_data:
@@ -152,7 +158,11 @@ async def websocket_endpoint(
             analytics.capture(
                 sessionId,
                 "message_sent",
-                {"project_id": projectId, "mode": "text", "message_index": message_count},
+                {
+                    "project_id": projectId,
+                    "mode": "text",
+                    "message_index": message_count,
+                },
             )
             message_count += 1
 
@@ -182,7 +192,6 @@ async def websocket_endpoint(
             indexing_task.cancel()
         sync_service = get_sync_service(ableton_client)
         sync_service.stop_listeners()
-        ableton_client.unset_websocket()
     except Exception as e:
         logger.error(
             f"[WS /ws] WebSocket error for session {sessionId}: {str(e)}", exc_info=True
@@ -202,7 +211,6 @@ async def websocket_endpoint(
             indexing_task.cancel()
         sync_service = get_sync_service(ableton_client)
         sync_service.stop_listeners()
-        ableton_client.unset_websocket()
 
 
 async def process_agent_with_tts(
@@ -299,7 +307,7 @@ async def websocket_audio_endpoint(
         )
 
         await ableton_client.start()
-        ableton_client.set_websocket(websocket)
+        send = _make_sender(websocket)
 
         existing_session = chat_repo.get_chat_session(sessionId)
         is_new_session = existing_session is None
@@ -311,32 +319,28 @@ async def websocket_audio_endpoint(
         analytics.capture(
             sessionId,
             "session_started",
-            {"project_id": projectId, "mode": "voice", "is_new_session": is_new_session},
+            {
+                "project_id": projectId,
+                "mode": "voice",
+                "is_new_session": is_new_session,
+            },
         )
 
         if project.indexed_at is None:
-            await websocket.send_json(
-                {
-                    "type": "indexing_status",
-                    "content": {"isIndexing": True, "progress": 0},
-                }
-            )
+            await send(IndexingStatusEvent(content=True))
             indexing_task = asyncio.create_task(
-                _background_index(websocket, ableton_client, projectId, sessionId, analytics)
+                _background_index(send, ableton_client, projectId, sessionId, analytics)
             )
         else:
-            await websocket.send_json(
-                {"type": "indexing_status", "content": {"isIndexing": False}}
+            tracks_for_frontend = ableton_repo.get_project_tracks_for_frontend(
+                projectId
             )
-            tracks_for_frontend = ableton_repo.get_project_tracks_for_frontend(projectId)
-            await websocket.send_json(
-                {
-                    "type": "tracks",
-                    "content": [
-                        t.model_dump(by_alias=True) for t in tracks_for_frontend
-                    ],
-                }
+            await send(
+                TracksEvent(
+                    content=[t.model_dump(by_alias=True) for t in tracks_for_frontend]
+                )
             )
+            await send(IndexingStatusEvent(content=False))
             sync_service = get_sync_service(ableton_client)
             project_data = ableton_repo.load_project_structure(projectId)
             if project_data:
@@ -374,7 +378,11 @@ async def websocket_audio_endpoint(
             analytics.capture(
                 sessionId,
                 "message_sent",
-                {"project_id": projectId, "mode": "voice", "message_index": message_count},
+                {
+                    "project_id": projectId,
+                    "mode": "voice",
+                    "message_index": message_count,
+                },
             )
             message_count += 1
 
@@ -404,7 +412,6 @@ async def websocket_audio_endpoint(
             indexing_task.cancel()
         sync_service = get_sync_service(ableton_client)
         sync_service.stop_listeners()
-        ableton_client.unset_websocket()
     except Exception as e:
         logger.error(
             f"[WS /ws/audio] WebSocket error for session {sessionId}: {str(e)}",
@@ -425,17 +432,16 @@ async def websocket_audio_endpoint(
             indexing_task.cancel()
         sync_service = get_sync_service(ableton_client)
         sync_service.stop_listeners()
-        ableton_client.unset_websocket()
 
 
 async def _background_index(
-    websocket: WebSocket,
+    send: EventSender,
     ableton_client: AbletonClient,
     project_id: int,
     session_id: str,
     analytics: AnalyticsService,
 ) -> None:
-    """Index a project from Ableton in the background, streaming progress over WebSocket.
+    """Index a project from Ableton in the background, streaming events via send().
 
     On reconnect after a disconnect, already-indexed tracks are skipped so indexing
     resumes where it left off.
@@ -449,7 +455,14 @@ async def _background_index(
         analytics.capture(session_id, "indexing_started", {"project_id": project_id})
         index_start = time.monotonic()
 
-        project_data = await indexing_service.index_project(project_id, websocket)
+        project_data = await indexing_service.index_project(project_id)
+        tracks_for_frontend = ableton_repo.get_project_tracks_for_frontend(project_id)
+        await send(
+            TracksEvent(
+                content=[t.model_dump(by_alias=True) for t in tracks_for_frontend]
+            )
+        )
+        await send(IndexingStatusEvent(content=False))
 
         analytics.capture(
             session_id,
@@ -478,9 +491,7 @@ async def _background_index(
             f"[BG_INDEX] Indexing failed for project {project_id}: {e}", exc_info=True
         )
         try:
-            await websocket.send_json(
-                {"type": "error", "content": f"Indexing failed: {str(e)}"}
-            )
+            await send(IndexErrorEvent(content=f"Indexing failed: {str(e)}"))
         except Exception:
             pass
     finally:
