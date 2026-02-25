@@ -2,7 +2,7 @@
 
 import math
 
-from .models import ParameterData, TrackDeviceSummary
+from .models import ParameterData, TrackDevices
 
 
 def volume_to_db(value: float) -> str:
@@ -46,16 +46,12 @@ def format_bar_length(beats: float, time_sig_numerator: int = 4) -> str:
     return f"{bars} bars"
 
 
-def format_device_summary(track_data: TrackDeviceSummary) -> str:
+def format_track_devices(track_data: TrackDevices) -> str:
     """Format track devices as compact summary for LLM."""
-    return (
-        f"Track: {track_data.name}\nDevices: {', '.join(track_data.devices) or 'None'}"
-    )
+    return f"Track: {track_data.name}\nDevices: {', '.join(d.name for d in track_data.devices) or 'None'}"
 
 
-def format_device_params(
-    device_name: str, track_name: str, params: list[ParameterData]
-) -> str:
+def format_device_params(params: list[ParameterData]) -> str:
     """Format device parameters as compact key=value string for LLM."""
     param_strs = [f"{p.name}={p.value_string}" for p in params if p.value_string]
-    return f"{device_name} on {track_name}:\n  {', '.join(param_strs)}"
+    return f"', '.join{param_strs}"

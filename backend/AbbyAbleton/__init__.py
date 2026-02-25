@@ -1,9 +1,5 @@
 import asyncio
-import importlib
 import json
-import os
-import shutil
-import sys
 import threading
 import traceback
 
@@ -14,14 +10,6 @@ HOST = "127.0.0.1"
 
 
 def create_instance(c_instance):
-    """Create and return the AbletonListener script instance"""
-    cache_dir = os.path.join(os.path.dirname(__file__), "__pycache__")
-    if os.path.exists(cache_dir):
-        shutil.rmtree(cache_dir)
-    if "Abby" in sys.modules:
-        importlib.reload(sys.modules["Abby"])
-        if "AbletonListener" in sys.modules:
-            importlib.reload(sys.modules["AbletonListener"])
     return AbletonListener(c_instance)
 
 

@@ -16,6 +16,7 @@ from .models import (
     ProjectIndex,
     SongContext,
     TrackData,
+    TrackDevices,
 )
 
 DEFAULT_HOST = "127.0.0.1"
@@ -217,6 +218,14 @@ class AbletonClient:
         tasks = [self.get_track_name(i) for i in range(num_tracks)]
         return list(await asyncio.gather(*tasks))
 
+    async def get_track_devices(self, track_index: int) -> TrackDevices:
+        r = await _cmd(self._conn, "get_track_devices", {"track_index": track_index})
+        return TrackDevices(
+            index=r["track_index"],
+            name=r["track_name"],
+            devices=r["devices"],
+        )
+
     # --- Device/parameter-level ---
 
     async def get_device_name(self, track_index: int, device_index: int) -> str:
@@ -227,11 +236,11 @@ class AbletonClient:
         )
         return str(r["device_name"])
 
-    async def get_parameters(
+    async def get_device_parameters(
         self,
         track_index: int,
         device_index: int,
-        include_value_string: bool = False,
+        include_value_string: bool = True,
     ) -> list[ParameterData]:
         logger.info(
             f"[ABLETON] get_parameters() track={track_index} device={device_index}"

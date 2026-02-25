@@ -23,11 +23,16 @@ class TrackData(BaseModel):
     devices: list[DeviceData] = []
 
 
-class TrackDeviceSummary(BaseModel):
-    """Lightweight track info for agent tools: track name + device names only."""
-
+class TrackDevice(BaseModel):
+    index: int
     name: str
-    devices: list[str] = []  # device names only
+    class_name: str
+
+
+class TrackDevices(BaseModel):
+    index: int
+    name: str
+    devices: list[TrackDevice] = []
 
 
 class DeviceParameters(BaseModel):
@@ -55,7 +60,7 @@ class TrackMixerState(BaseModel):
     has_midi_input: bool
     has_audio_output: bool
     output_routing: str | None = None
-    sends: list[float] = []  # populated from Ableton OSC; empty when read from DB
+    sends: list[float] = []
 
 
 class ClipInfo(BaseModel):
