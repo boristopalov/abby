@@ -2,6 +2,8 @@
   import { marked } from "marked";
   import type { ChatMessage, Track } from "../types";
   import { tracks } from "../lib/state.svelte";
+  import { wsStore } from "../lib/wsStore";
+  import { updateLastPendingApproval } from "../lib/chatStore";
 
   function renderMarkdown(text: string): string {
     return marked.parse(text) as string;
@@ -96,6 +98,17 @@
 
   function removeTrack(trackId: string) {
     selectedTracks = selectedTracks.filter((t) => t.id !== trackId);
+  }
+
+  function handleApproval(message: ChatMessage, approved: boolean) {
+    const approvals = Object.fromEntries(
+      (message.requests ?? []).map((r) => [r.tool_call_id, approved]),
+    );
+    updateLastPendingApproval((msg) => ({
+      ...msg,
+      approvalState: approved ? "approved" : "denied",
+    }));
+    wsStore.sendApproval(approvals);
   }
 
   // Scroll to bottom when new messages arrive
@@ -280,6 +293,110 @@
     font-style: italic;
   }
 
+  /* ── Approval card ── */
+  .msg-approval {
+    max-width: 90%;
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-left: 3px solid #c0892a;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .approval-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    padding: 0.45rem 0.875rem;
+  }
+
+  .approval-icon {
+    font-size: 0.7rem;
+    color: #c0892a;
+    flex-shrink: 0;
+  }
+
+  .approval-label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #c0892a;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .approval-requests {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .approval-request-item {
+    padding: 0.35rem 0.875rem;
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
+
+  .approval-tool-name {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--ink);
+  }
+
+  .approval-tool-args {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--ink-3);
+  }
+
+  .approval-actions {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem 0.875rem 0.6rem;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg);
+  }
+
+  .approval-decided {
+    padding: 0.45rem 0.875rem;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+  }
+
+  .approval-decided--approved { color: #5a8a5a; }
+  .approval-decided--denied   { color: #8a5a5a; }
+
+  .btn-approve {
+    background: #3a6e3a;
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    padding: 0.3rem 0.875rem;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-approve:hover { opacity: 0.85; }
+
+  .btn-deny {
+    background: none;
+    color: var(--ink-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.3rem 0.875rem;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-deny:hover { border-color: #8a3a3a; color: #8a3a3a; }
+
   /* ── Input area ── */
   .chat-input-area {
     border-top: 1px solid var(--border-light);
@@ -407,7 +524,7 @@
   <div class="messages-outer" bind:this={messagesContainer}>
     <div class="messages-column">
       {#each messages as message}
-        <div class="message-row {message.isUser ? 'message-row--user' : message.type === 'function_call' ? 'message-row--tool' : 'message-row--ai'}">
+        <div class="message-row {message.isUser ? 'message-row--user' : message.type === 'function_call' || message.type === 'approval_required' ? 'message-row--tool' : 'message-row--ai'}">
           {#if message.type === "function_call"}
             <!-- Reference card for tool calls -->
             <div class="msg-tool">
@@ -422,6 +539,40 @@
               </div>
               {#if message.result}
                 <div class="tool-result">{message.result}</div>
+              {/if}
+            </div>
+          {:else if message.type === "approval_required"}
+            <!-- Approval request card -->
+            <div class="msg-approval">
+              <div class="approval-header">
+                <span class="approval-icon">⚠</span>
+                <span class="approval-label">Approval required</span>
+              </div>
+              <div class="approval-requests">
+                {#each message.requests ?? [] as req}
+                  <div class="approval-request-item">
+                    <span class="approval-tool-name">{req.tool_name}</span>
+                    {#if Object.keys(req.arguments).length > 0}
+                      <span class="approval-tool-args">
+                        ({Object.entries(req.arguments).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(", ")})
+                      </span>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+              {#if message.approvalState === "pending"}
+                <div class="approval-actions">
+                  <button class="btn-approve" onclick={() => handleApproval(message, true)}>
+                    Approve
+                  </button>
+                  <button class="btn-deny" onclick={() => handleApproval(message, false)}>
+                    Deny
+                  </button>
+                </div>
+              {:else}
+                <div class="approval-decided approval-decided--{message.approvalState}">
+                  {message.approvalState === "approved" ? "Approved" : "Denied"}
+                </div>
               {/if}
             </div>
           {:else}

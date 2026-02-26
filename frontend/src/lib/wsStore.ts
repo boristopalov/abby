@@ -29,10 +29,12 @@ interface WebSocketMessage {
     | "indexing_status"
     | "parameter_change"
     | "tracks"
-    | "track";
+    | "track"
+    | "approval_required";
   content: string | number | ParameterChange | Track[] | object;
   arguments?: Record<string, unknown>;
   tool_call_id?: string;
+  requests?: Array<{ tool_call_id: string; tool_name: string; arguments: Record<string, unknown> }>;
 }
 
 const createWebSocketStore = () => {
@@ -91,6 +93,8 @@ const createWebSocketStore = () => {
         parameterChanges.changes.push(data.content as ParameterChange);
         break;
       case "function_call":
+        isStreaming = false;
+        currentMessage = "";
         update((state) => ({ ...state, isModelThinking: true }));
         addGlobalMessage({
           text: data.content as string,
@@ -115,6 +119,16 @@ const createWebSocketStore = () => {
           text: data.content as string,
           isUser: false,
           type: "error",
+        });
+        break;
+
+      case "approval_required":
+        addGlobalMessage({
+          text: "approval_required",
+          isUser: false,
+          type: "approval_required",
+          requests: data.requests,
+          approvalState: "pending",
         });
         break;
     }
@@ -173,6 +187,14 @@ const createWebSocketStore = () => {
       if (state.ws && state.isConnected) {
         update((state) => ({ ...state, isModelThinking: true }));
         state.ws.send(JSON.stringify({ message }));
+      }
+    },
+
+    sendApproval: (approvals: Record<string, boolean>) => {
+      const state = get(wsStore);
+      if (state.ws && state.isConnected) {
+        update((s) => ({ ...s, isModelThinking: true }));
+        state.ws.send(JSON.stringify({ type: "approval_response", approvals }));
       }
     },
   };

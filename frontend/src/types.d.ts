@@ -1,12 +1,21 @@
+export interface ApprovalRequest {
+  tool_call_id: string;
+  tool_name: string;
+  arguments: Record<string, unknown>;
+}
+
 export interface ChatMessage {
   text: string;
   isUser: boolean;
   timestamp?: number;
-  type?: "text" | "function_call" | "function_result" | "error";
+  type?: "text" | "function_call" | "function_result" | "error" | "approval_required";
   arguments?: Record<string, unknown>;
   tool_call_id?: string;
   result?: string;
   trackId?: number;
+  // approval_required fields
+  requests?: ApprovalRequest[];
+  approvalState?: "pending" | "approved" | "denied";
 }
 
 export interface ParameterChange {

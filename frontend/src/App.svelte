@@ -2,11 +2,9 @@
     import { onMount, onDestroy } from "svelte";
     import { sessionStorage, activeSessionId } from "./lib/sessionStore";
     import {
-        getRecentParameterChanges,
         getSessionMessages,
         getProjects,
         createProject,
-        reindexProject,
     } from "./lib/apiCalls";
     import SessionList from "./components/SessionList.svelte";
     import ConnectionStatus from "./components/ConnectionStatus.svelte";
@@ -20,7 +18,6 @@
     } from "./lib/chatStore";
     import { wsStore } from "./lib/wsStore";
     import {
-        indexing,
         tracks,
         parameterChanges,
         projectState,
@@ -54,14 +51,6 @@
         ) {
             wsStore.connect();
         }
-
-        // Poll every 3s for parameter changes
-        intervalId = setInterval(async () => {
-            const changes = await getRecentParameterChanges(storedProjectId!);
-            if (changes) {
-                parameterChanges.changes = changes;
-            }
-        }, 3000);
     });
 
     onDestroy(() => {
@@ -103,21 +92,6 @@
         wsStore.connect();
     }
 
-    async function handleReindexProject() {
-        if (!projectState.activeProjectId) return;
-
-        wsStore.disconnect();
-
-        try {
-            await reindexProject(projectState.activeProjectId);
-            // Refresh projects list
-            projectState.projects = await getProjects();
-            wsStore.connect();
-        } catch (e: any) {
-            projectError = e.message || "Failed to reindex project";
-        }
-    }
-
     async function handleSessionSelect(sessionId: string) {
         activeSessionId.set(sessionId);
         sessionStorage.setActiveSessionId(sessionId);
@@ -153,13 +127,6 @@
                 </span>
                 <button onclick={changeProject} class="btn-subtle">
                     Change Project
-                </button>
-                <button
-                    onclick={handleReindexProject}
-                    disabled={indexing.isIndexing || !$wsStore.isConnected}
-                    class="btn-subtle"
-                >
-                    Re-index
                 </button>
             {/if}
             <ConnectionStatus isConnected={$wsStore.isConnected} />
@@ -218,8 +185,8 @@
                         <p class="error-msg">{projectError}</p>
                     {/if}
                     <p class="hint-text">
-                        Make sure Ableton Live is running with AbletonOSC
-                        before creating a project.
+                        Make sure Ableton Live is running with AbletonOSC before
+                        creating a project.
                     </p>
                 </div>
             </div>
@@ -236,9 +203,6 @@
             />
 
             <div class="main-column">
-                {#if indexing.isIndexing}
-                    <IndexingBanner progress={indexing.progress} />
-                {/if}
                 <Chat
                     messages={$globalMessages}
                     onSendMessage={(message) => {
@@ -322,7 +286,9 @@
         font-size: 0.78rem;
         color: var(--ink-2);
         cursor: pointer;
-        transition: border-color 0.15s, color 0.15s;
+        transition:
+            border-color 0.15s,
+            color 0.15s;
     }
     .btn-subtle:hover {
         border-color: var(--accent);
@@ -394,7 +360,9 @@
         border-radius: var(--radius);
         padding: 0.7rem 1rem;
         cursor: pointer;
-        transition: border-color 0.15s, background 0.15s;
+        transition:
+            border-color 0.15s,
+            background 0.15s;
     }
     .project-item:hover {
         border-color: var(--accent);

@@ -41,8 +41,28 @@ class ModelErrorEvent(BaseModel):
     type: Literal["error"] = "error"
 
 
+class ApprovalRequest(BaseModel):
+    tool_call_id: str
+    tool_name: str
+    arguments: dict[str, Any]
+
+
+class ApprovalRequestEvent(BaseModel):
+    run_id: str
+    role: str = "model"
+    type: Literal["approval_required"] = "approval_required"
+    requests: list[ApprovalRequest]
+
+
 AgentEvent = Annotated[
-    Union[TextDeltaEvent, ToolCallEvent, ToolResultEvent, EndEvent, ModelErrorEvent],
+    Union[
+        TextDeltaEvent,
+        ToolCallEvent,
+        ToolResultEvent,
+        EndEvent,
+        ModelErrorEvent,
+        ApprovalRequestEvent,
+    ],
     Field(discriminator="type"),
 ]
 

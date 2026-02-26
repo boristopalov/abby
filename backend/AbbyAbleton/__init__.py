@@ -8,6 +8,17 @@ from _Framework.ControlSurface import ControlSurface  # pyright: ignore
 DEFAULT_PORT = 9877
 HOST = "127.0.0.1"
 
+_SAFE_BUILTINS = {
+    "len": len, "range": range, "enumerate": enumerate, "zip": zip,
+    "list": list, "dict": dict, "tuple": tuple, "set": set,
+    "str": str, "int": int, "float": float, "bool": bool,
+    "min": min, "max": max, "sum": sum, "abs": abs, "round": round,
+    "sorted": sorted, "reversed": reversed, "map": map, "filter": filter,
+    "any": any, "all": all, "isinstance": isinstance,
+    "hasattr": hasattr, "getattr": getattr, "repr": repr, "type": type,
+    "None": None, "True": True, "False": False,
+}
+
 
 def create_instance(c_instance):
     return AbletonListener(c_instance)
@@ -160,8 +171,11 @@ class AbletonListener(ControlSurface):
         AttributeError and return an error response if called.
         """
         self._read_handlers = {
+            "live_eval": lambda p: self._live_eval(p["expr"]),
             "get_session_info": lambda p: self._get_session_info(),
+            "get_track_structure": lambda p: self._get_track_structure(),
             "get_track_info": lambda p: self._get_track_info(p["track_index"]),
+            "get_arrangement_clips": lambda p: self._get_arrangement_clips(p["track_index"]),
             "get_track_devices": lambda p: self._get_track_devices(p["track_index"]),
             "get_device_parameters": lambda p: self._get_device_parameters(
                 p["track_index"], p["device_index"]
@@ -213,6 +227,19 @@ class AbletonListener(ControlSurface):
             "load_browser_item": lambda p: self._load_browser_item(
                 p["track_index"], p["item_uri"]
             ),
+            "live_exec": lambda p: self._live_exec(p["code"]),
+            "create_rack": lambda p: self._create_rack(
+                p["track_index"], p["rack_type"]
+            ),
+            "add_device_to_rack": lambda p: self._add_device_to_rack(
+                p["track_index"],
+                p["rack_device_index"],
+                p["device_name"],
+                p.get("chain_index", 0),
+            ),
+            "add_notes_to_arrangement_clip": lambda p: self._add_notes_to_arrangement_clip(
+                p["track_index"], p["clip_index"], p["notes"]
+            ),
         }
 
     # --- Command implementations (unchanged from original) ---
@@ -236,6 +263,24 @@ class AbletonListener(ControlSurface):
         except Exception as e:
             self.log_message("Error getting session info: " + str(e))
             raise
+
+    def _get_track_structure(self):
+        """Return lightweight structural info for all tracks: type and group nesting."""
+        tracks = []
+        for i, t in enumerate(self._song.tracks):
+            if self._safe_track_prop(t, "is_foldable"):
+                track_type = "group"
+            elif self._safe_track_prop(t, "has_midi_input"):
+                track_type = "midi"
+            else:
+                track_type = "audio"
+            tracks.append({
+                "index": i,
+                "name": t.name,
+                "type": track_type,
+                "is_grouped": bool(getattr(t, "is_grouped", False)),
+            })
+        return {"tracks": tracks}
 
     def _get_track_info(self, track_index):
         """Get information about a track"""
@@ -277,6 +322,7 @@ class AbletonListener(ControlSurface):
             result = {
                 "index": track_index,
                 "name": track.name,
+                "is_foldable": self._safe_track_prop(track, "is_foldable"),
                 "is_audio_track": self._safe_track_prop(track, "has_audio_input"),
                 "is_midi_track": self._safe_track_prop(track, "has_midi_input"),
                 "mute": self._safe_track_prop(track, "mute"),
@@ -293,6 +339,26 @@ class AbletonListener(ControlSurface):
                 f"Error getting track info for track index {track_index}: " + str(e)
             )
             raise
+
+    def _get_arrangement_clips(self, track_index):
+        """Return arrangement clips for a non-group, non-return track."""
+        if track_index < 0 or track_index >= len(self._song.tracks):
+            raise IndexError(f"Track index {track_index} out of range")
+        track = self._song.tracks[track_index]
+        try:
+            clips = [
+                {
+                    "name": c.name,
+                    "start_time": c.start_time,
+                    "end_time": c.end_time,
+                    "length": c.length,
+                    "is_midi": c.is_midi_clip,
+                }
+                for c in track.arrangement_clips
+            ]
+        except Exception as e:
+            raise RuntimeError(str(e))
+        return {"track_index": track_index, "track_name": track.name, "clips": clips}
 
     def _get_track_devices(self, track_index):
         """Get the list of devices on a track."""
@@ -576,41 +642,43 @@ class AbletonListener(ControlSurface):
             raise
 
     def _add_notes_to_clip(self, track_index, clip_index, notes):
-        """Add MIDI notes to a clip"""
-        try:
-            if track_index < 0 or track_index >= len(self._song.tracks):
-                raise IndexError("Track index out of range")
-
-            track = self._song.tracks[track_index]
-
-            if clip_index < 0 or clip_index >= len(track.clip_slots):
-                raise IndexError("Clip index out of range")
-
-            clip_slot = track.clip_slots[clip_index]
-
-            if not clip_slot.has_clip:
-                raise Exception("No clip in slot")
-
-            clip = clip_slot.clip
-
-            live_notes = []
-            for note in notes:
-                pitch = note.get("pitch", 60)
-                start_time = note.get("start_time", 0.0)
-                duration = note.get("duration", 0.25)
-                velocity = note.get("velocity", 100)
-                mute = note.get("mute", False)
-                live_notes.append((pitch, start_time, duration, velocity, mute))
-
-            clip.set_notes(tuple(live_notes))
-
-            result = {"note_count": len(notes)}
-            return result
-        except Exception as e:
-            self.log_message(
-                f"Error adding {len(notes)} notes to clip at track {track_index}, slot {clip_index}: {e}"
+        """Add MIDI notes to a session-view clip using add_new_notes()."""
+        import Live  # noqa: PLC0415
+        track = self._song.tracks[track_index]
+        clip_slot = track.clip_slots[clip_index]
+        if not clip_slot.has_clip:
+            raise Exception("No clip in slot")
+        clip = clip_slot.clip
+        specs = [
+            Live.Clip.MidiNoteSpecification(
+                pitch=int(n.get("pitch", 60)),
+                start_time=float(n.get("start_time", 0.0)),
+                duration=float(n.get("duration", 0.25)),
+                velocity=int(n.get("velocity", 100)),
+                mute=bool(n.get("mute", False)),
             )
-            raise
+            for n in notes
+        ]
+        clip.add_new_notes(specs)
+        return {"note_count": len(notes)}
+
+    def _add_notes_to_arrangement_clip(self, track_index, clip_index, notes):
+        """Add MIDI notes to an arrangement clip using add_new_notes()."""
+        import Live  # noqa: PLC0415
+        track = self._song.tracks[track_index]
+        clip = track.arrangement_clips[clip_index]
+        specs = [
+            Live.Clip.MidiNoteSpecification(
+                pitch=int(n.get("pitch", 60)),
+                start_time=float(n.get("start_time", 0.0)),
+                duration=float(n.get("duration", 0.25)),
+                velocity=int(n.get("velocity", 100)),
+                mute=bool(n.get("mute", False)),
+            )
+            for n in notes
+        ]
+        clip.add_new_notes(specs)
+        return {"note_count": len(notes)}
 
     def _set_clip_name(self, track_index, clip_index, name):
         """Set the name of a clip"""
@@ -826,6 +894,169 @@ class AbletonListener(ControlSurface):
             )
             self.log_message(traceback.format_exc())
             raise
+
+    def _live_eval(self, expr):
+        """Evaluate a Python expression with song and app in scope.
+
+        Returns {"result": repr(value)} on success so the agent can read
+        arbitrary Live API state without requiring a dedicated handler.
+
+        Example params: {"expr": "song.tracks[0].name"}
+        """
+        self.log_message(f"_live_eval: {expr!r}")
+        # song/app go in globals (not locals) so nested comprehensions can see them.
+        # In Python 3, inner list comprehensions inherit globals, not the outer eval's locals.
+        ctx = {"__builtins__": _SAFE_BUILTINS, "song": self._song, "app": self.application()}
+        value = eval(expr, ctx, {})  # noqa: S307
+        result = repr(value)
+        self.log_message(f"_live_eval result: {result[:200]}")
+        return {"result": result}
+
+    def _live_exec(self, code):
+        """Execute a Python code block with song and app in scope on the main thread.
+
+        Use for state mutations not covered by a dedicated write handler.
+        Returns {"ok": true} on success.
+
+        Example params: {"code": "song.tracks[0].name = 'Kick'"}
+        """
+        self.log_message(f"_live_exec: {code!r}")
+        ctx = {"__builtins__": _SAFE_BUILTINS, "song": self._song, "app": self.application()}
+        exec(code, ctx, {})  # noqa: S102
+        self.log_message("_live_exec: ok")
+        return {"ok": True}
+
+    def _create_rack(self, track_index, rack_type):
+        """Insert an empty Audio Effect Rack or Instrument Rack on a track."""
+        self.log_message(f"_create_rack: track={track_index} type={rack_type!r}")
+        if track_index < 0 or track_index >= len(self._song.tracks):
+            raise IndexError(f"Track index {track_index} out of range")
+        track = self._song.tracks[track_index]
+        app = self.application()
+
+        if rack_type == "audio_effect":
+            category = app.browser.audio_effects
+            rack_name = "Audio Effect Rack"
+        elif rack_type == "instrument":
+            category = app.browser.instruments
+            rack_name = "Instrument Rack"
+        else:
+            raise ValueError(
+                f"Unknown rack_type '{rack_type}'. Use 'audio_effect' or 'instrument'."
+            )
+
+        self.log_message(f"_create_rack: searching browser for '{rack_name}'")
+        item = self._find_browser_item_by_name(category, rack_name)
+        if not item:
+            raise ValueError(f"Could not find '{rack_name}' in browser")
+
+        self.log_message(
+            f"_create_rack: found '{item.name}', loading onto track '{track.name}'"
+        )
+        self._song.view.selected_track = track
+        app.browser.load_item(item)
+
+        new_device = track.devices[-1]
+        rack_device_index = len(track.devices) - 1
+        self.log_message(
+            f"_create_rack: loaded '{new_device.name}' at device index {rack_device_index}"
+        )
+        return {
+            "track_index": track_index,
+            "track_name": track.name,
+            "rack_device_index": rack_device_index,
+            "rack_name": new_device.name,
+        }
+
+    def _add_device_to_rack(
+        self, track_index, rack_device_index, device_name, chain_index=0
+    ):
+        """Load a native device into a rack's chain by device name."""
+        self.log_message(
+            f"_add_device_to_rack: track={track_index} rack={rack_device_index} "
+            f"device={device_name!r} chain={chain_index}"
+        )
+        if track_index < 0 or track_index >= len(self._song.tracks):
+            raise IndexError(f"Track index {track_index} out of range")
+        track = self._song.tracks[track_index]
+
+        if rack_device_index < 0 or rack_device_index >= len(track.devices):
+            raise IndexError(f"Device index {rack_device_index} out of range")
+        rack = track.devices[rack_device_index]
+
+        if not hasattr(rack, "chains"):
+            raise ValueError(f"Device at index {rack_device_index} is not a rack")
+
+        if chain_index < 0 or chain_index >= len(rack.chains):
+            raise IndexError(
+                f"Chain index {chain_index} out of range "
+                f"(rack has {len(rack.chains)} chains)"
+            )
+
+        chain = rack.chains[chain_index]
+        app = self.application()
+
+        self.log_message(f"_add_device_to_rack: searching browser for '{device_name}'")
+        # Search audio_effects first, then instruments
+        item = self._find_browser_item_by_name(app.browser.audio_effects, device_name)
+        if not item:
+            self.log_message(
+                f"_add_device_to_rack: not found in audio_effects, trying instruments"
+            )
+            item = self._find_browser_item_by_name(app.browser.instruments, device_name)
+        if not item:
+            raise ValueError(f"Could not find device '{device_name}' in browser")
+
+        self.log_message(
+            f"_add_device_to_rack: found '{item.name}', "
+            f"selecting chain {chain_index} on rack '{rack.name}'"
+        )
+        # Select the rack chain to set the load target
+        self._song.view.selected_track = track
+        rack.view.selected_chain = chain
+        app.browser.load_item(item)
+
+        new_device = chain.devices[-1]
+        device_index = len(chain.devices) - 1
+        self.log_message(
+            f"_add_device_to_rack: loaded '{new_device.name}' at chain device index {device_index}"
+        )
+        return {
+            "track_index": track_index,
+            "rack_device_index": rack_device_index,
+            "chain_index": chain_index,
+            "device_name": new_device.name,
+            "device_index": device_index,
+        }
+
+    def _find_browser_item_by_name(
+        self, browser_or_item, name, max_depth=5, current_depth=0
+    ):
+        """Find a loadable browser item by name (case-insensitive)."""
+        try:
+            if (
+                hasattr(browser_or_item, "name")
+                and browser_or_item.name.lower() == name.lower()
+                and hasattr(browser_or_item, "is_loadable")
+                and browser_or_item.is_loadable
+            ):
+                return browser_or_item
+
+            if current_depth >= max_depth:
+                return None
+
+            if hasattr(browser_or_item, "children"):
+                for child in browser_or_item.children:
+                    result = self._find_browser_item_by_name(
+                        child, name, max_depth, current_depth + 1
+                    )
+                    if result:
+                        return result
+
+            return None
+        except Exception as e:
+            self.log_message(f"Error finding browser item by name {name!r}: {e}")
+            return None
 
     def _find_browser_item_by_uri(
         self, browser_or_item, uri, max_depth=10, current_depth=0

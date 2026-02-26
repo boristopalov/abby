@@ -134,3 +134,43 @@ class TrackFrontendInfo(BaseModel):
     id: int
     name: str
     devices: list[DeviceFrontendInfo] = []
+
+
+class TrackInfo(BaseModel):
+    index: int
+    name: str
+    is_foldable: bool | None = None  # True = group track
+    is_audio_track: bool | None = None
+    is_midi_track: bool | None = None
+    mute: bool | None = None
+    solo: bool | None = None
+    arm: bool | None = None
+    volume: float
+    panning: float
+    devices: list[TrackDevice] = []
+    clip_slot_count: int = 0
+
+
+class TrackSummary(BaseModel):
+    index: int
+    name: str
+    type: str  # "group", "midi", "audio"
+    is_grouped: bool  # True = nested inside a group track
+
+
+class TrackStructure(BaseModel):
+    tracks: list[TrackSummary]
+
+
+class ArrangementClip(BaseModel):
+    name: str
+    start_time: float   # beats
+    end_time: float     # beats
+    length: float       # beats
+    is_midi: bool
+
+
+class TrackArrangementClips(BaseModel):
+    track_index: int
+    track_name: str
+    clips: list[ArrangementClip] = []

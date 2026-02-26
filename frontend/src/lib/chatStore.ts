@@ -44,6 +44,22 @@ export function updateGlobalMessageByToolCallId(
   });
 }
 
+export function updateLastPendingApproval(
+  updater: (msg: ChatMessage) => ChatMessage,
+) {
+  globalMessages.update((messages) => {
+    const idx = messages.findLastIndex(
+      (m) => m.type === "approval_required" && m.approvalState === "pending",
+    );
+    if (idx === -1) return messages;
+    return [
+      ...messages.slice(0, idx),
+      updater(messages[idx]),
+      ...messages.slice(idx + 1),
+    ];
+  });
+}
+
 // Get messages for a specific track
 export function getTrackMessages(trackId: string) {
   const chats = get(trackChats);

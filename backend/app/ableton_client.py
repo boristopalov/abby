@@ -1,7 +1,7 @@
 """Async TCP client for Our Remote MIDI Script (replaces the OSC-based AbletonClient in ableton.py)."""
 
 import asyncio
-import json
+import json as _json
 import uuid
 from collections.abc import Coroutine
 from functools import lru_cache
@@ -9,14 +9,20 @@ from typing import Any, Callable
 
 from .logger import logger
 from .models import (
+    ArrangementClip,
     ClipInfo,
     DeviceData,
     Note,
     ParameterData,
     ProjectIndex,
     SongContext,
+    TrackArrangementClips,
     TrackData,
     TrackDevices,
+    TrackDevice,
+    TrackInfo,
+    TrackStructure,
+    TrackSummary,
 )
 
 DEFAULT_HOST = "127.0.0.1"
@@ -77,7 +83,7 @@ class _AbletonConnection:
                 if not line:
                     break
                 try:
-                    message: dict[str, Any] = json.loads(line.decode("utf-8"))
+                    message: dict[str, Any] = _json.loads(line.decode("utf-8"))
                 except ValueError:
                     logger.warning("[ABLETON] Received malformed JSON line, skipping")
                     continue
@@ -118,7 +124,7 @@ class _AbletonConnection:
         future: asyncio.Future[dict[str, Any]] = loop.create_future()
         self._pending[request_id] = future
 
-        self._writer.write((json.dumps(payload) + "\n").encode("utf-8"))
+        self._writer.write((_json.dumps(payload) + "\n").encode("utf-8"))
         await self._writer.drain()
         return await future
 
@@ -183,6 +189,20 @@ class AbletonClient:
             num_tracks=int(r["track_count"]),
         )
 
+    async def get_track_structure(self) -> TrackStructure:
+        r = await _cmd(self._conn, "get_track_structure")
+        return TrackStructure(
+            tracks=[
+                TrackSummary(
+                    index=t["index"],
+                    name=t["name"],
+                    type=t["type"],
+                    is_grouped=bool(t.get("is_grouped", False)),
+                )
+                for t in r["tracks"]
+            ]
+        )
+
     async def set_tempo(self, tempo: float) -> float:
         r = await _cmd(self._conn, "set_tempo", {"tempo": tempo})
         return float(r["tempo"])
@@ -224,6 +244,43 @@ class AbletonClient:
             index=r["track_index"],
             name=r["track_name"],
             devices=r["devices"],
+        )
+
+    async def get_track_info(self, track_index: int) -> TrackInfo:
+        r = await _cmd(self._conn, "get_track_info", {"track_index": track_index})
+        return TrackInfo(
+            index=r["index"],
+            name=r["name"],
+            is_foldable=r.get("is_foldable"),
+            is_audio_track=r.get("is_audio_track"),
+            is_midi_track=r.get("is_midi_track"),
+            mute=r.get("mute"),
+            solo=r.get("solo"),
+            arm=r.get("arm"),
+            volume=float(r["volume"]),
+            panning=float(r["panning"]),
+            devices=[
+                TrackDevice(index=d["index"], name=d["name"], class_name=d["class_name"])
+                for d in r.get("devices", [])
+            ],
+            clip_slot_count=len(r.get("clip_slots", [])),
+        )
+
+    async def get_arrangement_clips(self, track_index: int) -> TrackArrangementClips:
+        r = await _cmd(self._conn, "get_arrangement_clips", {"track_index": track_index})
+        return TrackArrangementClips(
+            track_index=r["track_index"],
+            track_name=r["track_name"],
+            clips=[
+                ArrangementClip(
+                    name=c["name"],
+                    start_time=float(c["start_time"]),
+                    end_time=float(c["end_time"]),
+                    length=float(c["length"]),
+                    is_midi=bool(c.get("is_midi", False)),
+                )
+                for c in r.get("clips", [])
+            ],
         )
 
     # --- Device/parameter-level ---
@@ -285,6 +342,57 @@ class AbletonClient:
         )
         return str(r.get("value_string", str(round(value, 4))))
 
+    async def create_rack(self, track_index: int, rack_type: str) -> str:
+        """Insert an empty Audio Effect Rack or Instrument Rack on a track.
+
+        Args:
+            track_index: 0-indexed track position.
+            rack_type: "audio_effect" or "instrument".
+
+        Returns: Human-readable confirmation with the new rack's device index.
+        """
+        r = await _cmd(
+            self._conn,
+            "create_rack",
+            {"track_index": track_index, "rack_type": rack_type},
+        )
+        return (
+            f"Created '{r['rack_name']}' on track '{r['track_name']}' "
+            f"(device index {r['rack_device_index']})"
+        )
+
+    async def add_device_to_rack(
+        self,
+        track_index: int,
+        rack_device_index: int,
+        device_name: str,
+        chain_index: int = 0,
+    ) -> str:
+        """Load a native Ableton device into a rack's chain by device name.
+
+        Args:
+            track_index: 0-indexed track position.
+            rack_device_index: 0-indexed position of the rack in the track's device chain.
+            device_name: Exact native device name (e.g. "Compressor", "EQ Eight").
+            chain_index: 0-indexed chain inside the rack (default 0).
+
+        Returns: Human-readable confirmation with the loaded device name and index.
+        """
+        r = await _cmd(
+            self._conn,
+            "add_device_to_rack",
+            {
+                "track_index": track_index,
+                "rack_device_index": rack_device_index,
+                "device_name": device_name,
+                "chain_index": chain_index,
+            },
+        )
+        return (
+            f"Added '{r['device_name']}' to chain {chain_index} "
+            f"at device index {r['device_index']}"
+        )
+
     # --- Clip operations ---
 
     async def get_clip_info(self, track_index: int, clip_index: int) -> ClipInfo | None:
@@ -324,16 +432,16 @@ class AbletonClient:
         )
         return bool(r.get("success", False))
 
-    async def create_clip(
-        self, track_index: int, clip_index: int, length: float
+    async def create_session_clip(
+        self, track_index: int, slot_index: int, length: float
     ) -> ClipInfo:
         r = await _cmd(
             self._conn,
             "create_clip",
-            {"track_index": track_index, "clip_index": clip_index, "length": length},
+            {"track_index": track_index, "clip_index": slot_index, "length": length},
         )
         return ClipInfo(
-            clip_id=clip_index,
+            clip_id=slot_index,
             name=r["name"],
             length_beats=float(r["length"]),
             is_midi=True,
@@ -341,6 +449,38 @@ class AbletonClient:
             loop_end=float(r["length"]),
             gain=1.0,
         )
+
+    async def add_notes_to_session_clip(
+        self, track_index: int, slot_index: int, notes: list[dict[str, Any]]
+    ) -> int:
+        """Add MIDI notes to a session-view clip slot.
+
+        Each note dict: pitch (int), start_time (float beats), duration (float beats),
+        velocity (int 0-127), mute (bool, optional).
+        Returns the number of notes added.
+        """
+        r = await _cmd(
+            self._conn,
+            "add_notes_to_clip",
+            {"track_index": track_index, "clip_index": slot_index, "notes": notes},
+        )
+        return int(r["note_count"])
+
+    async def add_notes_to_arrangement_clip(
+        self, track_index: int, clip_index: int, notes: list[dict[str, Any]]
+    ) -> int:
+        """Add MIDI notes to an arrangement clip.
+
+        Each note dict: pitch (int), start_time (float beats), duration (float beats),
+        velocity (int 0-127), mute (bool, optional).
+        Returns the number of notes added.
+        """
+        r = await _cmd(
+            self._conn,
+            "add_notes_to_arrangement_clip",
+            {"track_index": track_index, "clip_index": clip_index, "notes": notes},
+        )
+        return int(r["note_count"])
 
     # --- Sync/listener stubs ---
 
@@ -399,6 +539,17 @@ class AbletonClient:
                 )
             )
         return ProjectIndex(song_context=song_context, tracks=tracks)
+
+
+    async def send_raw_command(self, cmd_type: str, params: dict[str, Any]) -> str:
+        """Send an arbitrary command to the MIDI script and return the raw response as JSON.
+
+        Unlike other methods, this does not raise on error status — the full
+        response (including error messages) is returned so the agent can reason
+        about failures.
+        """
+        resp = await self._conn.send({"type": cmd_type, "params": params})
+        return _json.dumps(resp, indent=2)
 
 
 @lru_cache()

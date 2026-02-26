@@ -97,9 +97,21 @@ async def websocket_endpoint(
 
         while True:
             data = await websocket.receive_json()
-            msg = data.get("message")
             logger.info(f"[WS] Received WS Data: {data}")
 
+            if data.get("type") == "approval_response":
+                logger.info(f"[WS /ws] Processing approval response for session: {sessionId}")
+                async for chunk in chat_service.resume_with_approvals(
+                    sessionId,
+                    projectId,
+                    data.get("approvals", {}),
+                ):
+                    logger.info(f"[WS /ws] Sending chunk: {chunk}")
+                    await websocket.send_json(chunk.model_dump())
+                    await asyncio.sleep(0)
+                continue
+
+            msg = data.get("message")
             if msg == "[BLANK_AUDIO]" or not msg or not msg.strip():
                 logger.debug("[WS /ws] Skipping blank/empty audio")
                 continue
