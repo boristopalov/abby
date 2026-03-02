@@ -15,13 +15,15 @@ from .models import (
     Note,
     ParameterData,
     ProjectIndex,
+    ProjectStructure,
+    SessionClip,
     SongContext,
     TrackArrangementClips,
     TrackData,
     TrackDevices,
     TrackDevice,
     TrackInfo,
-    TrackStructure,
+    TrackSessionClips,
     TrackSummary,
 )
 
@@ -189,15 +191,18 @@ class AbletonClient:
             num_tracks=int(r["track_count"]),
         )
 
-    async def get_track_structure(self) -> TrackStructure:
-        r = await _cmd(self._conn, "get_track_structure")
-        return TrackStructure(
+    async def get_project_structure(self) -> ProjectStructure:
+        r = await _cmd(self._conn, "get_project_structure")
+        return ProjectStructure(
             tracks=[
                 TrackSummary(
                     index=t["index"],
                     name=t["name"],
                     type=t["type"],
                     is_grouped=bool(t.get("is_grouped", False)),
+                    mute=bool(t.get("mute", False)),
+                    solo=bool(t.get("solo", False)),
+                    color=int(t.get("color", 0)),
                 )
                 for t in r["tracks"]
             ]
@@ -254,9 +259,12 @@ class AbletonClient:
             is_foldable=r.get("is_foldable"),
             is_audio_track=r.get("is_audio_track"),
             is_midi_track=r.get("is_midi_track"),
+            is_grouped=bool(r.get("is_grouped", False)),
+            group_index=r.get("group_index"),
             mute=r.get("mute"),
             solo=r.get("solo"),
             arm=r.get("arm"),
+            is_frozen=bool(r.get("is_frozen", False)),
             volume=float(r["volume"]),
             panning=float(r["panning"]),
             devices=[
@@ -278,6 +286,24 @@ class AbletonClient:
                     end_time=float(c["end_time"]),
                     length=float(c["length"]),
                     is_midi=bool(c.get("is_midi", False)),
+                )
+                for c in r.get("clips", [])
+            ],
+        )
+
+    async def get_session_clips(self, track_index: int) -> TrackSessionClips:
+        r = await _cmd(self._conn, "get_session_clips", {"track_index": track_index})
+        return TrackSessionClips(
+            track_index=r["track_index"],
+            track_name=r["track_name"],
+            clips=[
+                SessionClip(
+                    slot_index=c["slot_index"],
+                    name=c["name"],
+                    length=float(c["length"]),
+                    is_midi=bool(c.get("is_midi", True)),
+                    is_playing=bool(c.get("is_playing", False)),
+                    is_recording=bool(c.get("is_recording", False)),
                 )
                 for c in r.get("clips", [])
             ],

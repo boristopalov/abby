@@ -173,9 +173,10 @@ class AbletonListener(ControlSurface):
         self._read_handlers = {
             "live_eval": lambda p: self._live_eval(p["expr"]),
             "get_session_info": lambda p: self._get_session_info(),
-            "get_track_structure": lambda p: self._get_track_structure(),
+            "get_project_structure": lambda p: self._get_project_structure(),
             "get_track_info": lambda p: self._get_track_info(p["track_index"]),
             "get_arrangement_clips": lambda p: self._get_arrangement_clips(p["track_index"]),
+            "get_session_clips": lambda p: self._get_session_clips(p["track_index"]),
             "get_track_devices": lambda p: self._get_track_devices(p["track_index"]),
             "get_device_parameters": lambda p: self._get_device_parameters(
                 p["track_index"], p["device_index"]
@@ -264,8 +265,8 @@ class AbletonListener(ControlSurface):
             self.log_message("Error getting session info: " + str(e))
             raise
 
-    def _get_track_structure(self):
-        """Return lightweight structural info for all tracks: type and group nesting."""
+    def _get_project_structure(self):
+        """Return lightweight structural info for all tracks: type, group nesting, and mixer state."""
         tracks = []
         for i, t in enumerate(self._song.tracks):
             if self._safe_track_prop(t, "is_foldable"):
@@ -279,6 +280,9 @@ class AbletonListener(ControlSurface):
                 "name": t.name,
                 "type": track_type,
                 "is_grouped": bool(getattr(t, "is_grouped", False)),
+                "mute": self._safe_track_prop(t, "mute", False),
+                "solo": self._safe_track_prop(t, "solo", False),
+                "color": self._safe_track_prop(t, "color", 0),
             })
         return {"tracks": tracks}
 
@@ -319,17 +323,30 @@ class AbletonListener(ControlSurface):
                     }
                 )
 
+            is_grouped = bool(getattr(track, "is_grouped", False))
+            group_index = None
+            if is_grouped:
+                group_track = getattr(track, "group_track", None)
+                if group_track is not None:
+                    for i, t in enumerate(self._song.tracks):
+                        if t is group_track:
+                            group_index = i
+                            break
+
             result = {
                 "index": track_index,
                 "name": track.name,
                 "is_foldable": self._safe_track_prop(track, "is_foldable"),
                 "is_audio_track": self._safe_track_prop(track, "has_audio_input"),
                 "is_midi_track": self._safe_track_prop(track, "has_midi_input"),
+                "is_grouped": is_grouped,
+                "group_index": group_index,
                 "mute": self._safe_track_prop(track, "mute"),
                 "solo": self._safe_track_prop(track, "solo"),
                 "arm": self._safe_track_prop(track, "arm"),
                 "volume": track.mixer_device.volume.value,
                 "panning": track.mixer_device.panning.value,
+                "is_frozen": self._safe_track_prop(track, "is_frozen", False),
                 "clip_slots": clip_slots,
                 "devices": devices,
             }
@@ -358,6 +375,25 @@ class AbletonListener(ControlSurface):
             ]
         except Exception as e:
             raise RuntimeError(str(e))
+        return {"track_index": track_index, "track_name": track.name, "clips": clips}
+
+    def _get_session_clips(self, track_index):
+        """Return all occupied session clip slots for a track."""
+        if track_index < 0 or track_index >= len(self._song.tracks):
+            raise IndexError(f"Track index {track_index} out of range")
+        track = self._song.tracks[track_index]
+        clips = []
+        for slot_index, slot in enumerate(track.clip_slots):
+            if slot.has_clip:
+                c = slot.clip
+                clips.append({
+                    "slot_index": slot_index,
+                    "name": c.name,
+                    "length": c.length,
+                    "is_midi": c.is_midi_clip,
+                    "is_playing": c.is_playing,
+                    "is_recording": self._safe_track_prop(c, "is_recording", False),
+                })
         return {"track_index": track_index, "track_name": track.name, "clips": clips}
 
     def _get_track_devices(self, track_index):

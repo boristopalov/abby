@@ -2,7 +2,7 @@
 
 import math
 
-from .models import ParameterData, SongContext, TrackArrangementClips, TrackDevices, TrackInfo, TrackStructure
+from .models import ParameterData, ProjectStructure, SongContext, TrackArrangementClips, TrackDevices, TrackInfo, TrackSessionClips
 
 
 def volume_to_db(value: float) -> str:
@@ -63,10 +63,10 @@ def format_track_devices(track_data: TrackDevices) -> str:
 def format_device_params(params: list[ParameterData]) -> str:
     """Format device parameters as compact key=value string for LLM."""
     param_strs = [f"{p.name}={p.value_string}" for p in params if p.value_string]
-    return f"', '.join{param_strs}"
+    return ", ".join(param_strs)
 
 
-def format_track_info(info: TrackInfo) -> str:
+def format_track_info(info: TrackInfo, label: str | None = None) -> str:
     """Format full track info as compact summary for LLM."""
     if info.is_foldable:
         track_type = "Group"
@@ -76,28 +76,43 @@ def format_track_info(info: TrackInfo) -> str:
         track_type = "Audio"
     else:
         track_type = "Return"
-    flags = [f for f, v in [("muted", info.mute), ("solo", info.solo), ("armed", info.arm)] if v]
+    flags = [f for f, v in [("muted", info.mute), ("solo", info.solo), ("armed", info.arm), ("frozen", info.is_frozen)] if v]
+    header_label = f"{label}: " if label else ""
     lines = [
-        f"Track [{info.index}]: {info.name} ({track_type})",
+        f"{header_label}Track [{info.index}]: {info.name} ({track_type})",
         f"Volume: {volume_to_db(info.volume)} | Pan: {pan_to_string(info.panning)}"
         + (f" | {', '.join(flags)}" if flags else ""),
         f"Devices: {', '.join(d.name for d in info.devices) or 'None'}",
     ]
-    if info.clip_slot_count:
-        lines.append(f"Session clip slots: {info.clip_slot_count}")
     return "\n".join(lines)
 
 
-def format_track_structure(structure: TrackStructure) -> str:
-    """Format all tracks as an indented list showing groups and nesting."""
+def format_project_structure(structure: ProjectStructure) -> str:
+    """Format all tracks as an indented list showing groups, nesting, and mixer state."""
     lines = []
     for t in structure.tracks:
         indent = "  " if t.is_grouped else ""
-        if t.type == "group":
-            label = "[group]"
-        else:
-            label = f"[{t.type}]"
-        lines.append(f"{indent}{t.index}: {t.name} {label}")
+        label = f"[{t.type}]"
+        flags = []
+        if t.mute:
+            flags.append("MUTED")
+        if t.solo:
+            flags.append("SOLO")
+        flag_str = f" ({', '.join(flags)})" if flags else ""
+        lines.append(f"{indent}{t.index}: {t.name} {label}{flag_str}")
+    return "\n".join(lines)
+
+
+def format_session_clips(data: TrackSessionClips) -> str:
+    """Format session clips as compact summary for LLM."""
+    if not data.clips:
+        return f"Track [{data.track_index}] '{data.track_name}': no session clips"
+    lines = [f"Track [{data.track_index}] '{data.track_name}': {len(data.clips)} session clip(s)"]
+    for c in data.clips:
+        kind = "MIDI" if c.is_midi else "audio"
+        name = f'"{c.name}"' if c.name else "(unnamed)"
+        status = " [playing]" if c.is_playing else (" [recording]" if c.is_recording else "")
+        lines.append(f"  slot {c.slot_index}: {name} | {kind} | {c.length:.1f} beats{status}")
     return "\n".join(lines)
 
 

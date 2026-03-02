@@ -142,9 +142,12 @@ class TrackInfo(BaseModel):
     is_foldable: bool | None = None  # True = group track
     is_audio_track: bool | None = None
     is_midi_track: bool | None = None
+    is_grouped: bool = False  # True = nested inside a group track
+    group_index: int | None = None  # index of the immediate parent group track
     mute: bool | None = None
     solo: bool | None = None
     arm: bool | None = None
+    is_frozen: bool = False
     volume: float
     panning: float
     devices: list[TrackDevice] = []
@@ -156,9 +159,12 @@ class TrackSummary(BaseModel):
     name: str
     type: str  # "group", "midi", "audio"
     is_grouped: bool  # True = nested inside a group track
+    mute: bool = False
+    solo: bool = False
+    color: int = 0  # Ableton color index; same color often indicates same functional role
 
 
-class TrackStructure(BaseModel):
+class ProjectStructure(BaseModel):
     tracks: list[TrackSummary]
 
 
@@ -174,3 +180,18 @@ class TrackArrangementClips(BaseModel):
     track_index: int
     track_name: str
     clips: list[ArrangementClip] = []
+
+
+class SessionClip(BaseModel):
+    slot_index: int
+    name: str
+    length: float       # beats
+    is_midi: bool
+    is_playing: bool = False
+    is_recording: bool = False
+
+
+class TrackSessionClips(BaseModel):
+    track_index: int
+    track_name: str
+    clips: list[SessionClip] = []  # only occupied slots

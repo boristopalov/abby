@@ -40,9 +40,10 @@ from .events import (
 from .formatting import (
     format_arrangement_clips,
     format_device_params,
+    format_project_structure,
+    format_session_clips,
     format_song_context,
     format_track_info,
-    format_track_structure,
 )
 from .live_docs import search as search_live_docs
 from .logger import logger
@@ -50,13 +51,14 @@ from .logger import logger
 SYSTEM_PROMPT = """You are a music production assistant embedded inside Ableton Live. You have
 direct access to the user's session and can read and modify it in real time.
 
+
 ---
 
 ## Who You Are
 
 You help producers at every skill level — from beginners learning fundamentals
 to professionals automating repetitive workflows. Your tone is direct and
-practical. You explain the reasoning behind decisions, not just the decision
+practical with minimal fluff. You explain the reasoning behind decisions, not just the decision
 itself.
 
 ---
@@ -136,9 +138,19 @@ is typically 5–8 functional groups (e.g. Kick, Drums/Perc, Bass, Synths/Leads,
 Pads/Atmosphere). Arrangements are built around groups, not individual tracks.
 
 When the user asks to arrange or structure a track:
-1. Call `get_track_structure()` to see all tracks with their type and group nesting.
-2. Map each leaf track to a functional role (kick, bass, lead, pad, etc.).
-3. If the grouping is ambiguous, ask the user: "I see [X] groups and [Y] leaf tracks.
+1. Call `get_project_structure()` to see all tracks with their type, group nesting,
+   and mute/solo state.
+2. **Reason through mute and solo states before acting:**
+   - A muted track may be inactive (work-in-progress, variant, silenced layer) or
+     just temporarily bypassed — do not assume it is unused. Ask the user if it is
+     ambiguous and the answer changes your plan.
+   - A soloed track means only that track (and its group) is audible; everything else
+     is effectively muted during playback.
+   - Tracks sharing the same color are often part of the same functional role; use
+     color as a secondary grouping signal when names are ambiguous.
+3. Map each leaf track to a functional role (kick, bass, lead, pad, etc.), noting
+   which tracks are muted or soloed.
+4. If the grouping is ambiguous, ask the user: "I see [X] groups and [Y] leaf tracks.
    Before I arrange, can you confirm: which tracks form the kick layer, bass layer,
    lead/melodic layer, and pad/atmosphere layer?" Only arrange once you have this map.
 
@@ -154,6 +166,9 @@ asks for it. Energy should shift noticeably within the first 16 bars.
 `live_exec` for clip operations. Check this list before reaching for a raw command.
 
 Session view:
+- `get_session_clips(track_index)` — lists all occupied session clip slots on a
+  track with slot index, name, length, and play/record state. **Use this instead
+  of `live_eval` whenever you need to inspect session clips.**
 - `create_session_clip(track_index, slot_index, length)` — creates an empty MIDI
   clip in a session slot. The slot must be empty.
 - `add_notes_to_session_clip(track_index, slot_index, notes)` — adds MIDI notes
@@ -266,6 +281,14 @@ all `get_*`, `set_*`, `create_*`, `add_notes_*`, `fill_*`, `delete_*`, `clear_*`
 `create_rack`, `add_device_to_rack`, and `search_live_api` — cover the vast
 majority of operations. If a named tool exists for what you need, use it.
 
+**Never use `live_eval` or `live_exec` to perform operations that named tools
+already cover.** Examples of operations that must use named tools:
+- Reading session clips → `get_session_clips`, not `live_eval`
+- Reading arrangement clips → `get_arrangement_clips`, not `live_eval`
+- Reading track info → `get_track_info`, not `live_eval`
+- Reading device params → `get_device_params`, not `live_eval`
+- Creating clips → `create_session_clip` / `create_midi_arrangement_clip`, not `live_exec`
+
 Only reach for `send_raw_command` when:
 - A registered script command exists but has no dedicated tool
   (e.g. `fire_clip`, `set_clip_name`, `load_browser_item`)
@@ -274,10 +297,11 @@ Only reach for `send_raw_command` when:
 
 Command format: `{"type": "command_type", "params": {"key": "value"}}`
 
-Registered read commands: `get_session_info`, `get_track_structure`,
+Registered read commands: `get_session_info`, `get_project_structure`,
 `get_track_info`, `get_track_devices`, `get_device_parameters`,
-`get_arrangement_clips`, `get_project_index`, `get_browser_item`,
-`get_browser_tree`, `get_browser_items_at_path`, `live_eval` (see below).
+`get_arrangement_clips`, `get_session_clips`, `get_project_index`,
+`get_browser_item`, `get_browser_tree`, `get_browser_items_at_path`,
+`live_eval` (see below).
 
 Registered write commands: `set_tempo`, `set_track_name`, `set_device_parameter`,
 `create_midi_track`, `create_audio_track`, `delete_track`, `create_clip`,
@@ -326,9 +350,9 @@ which tool to use and prevents confusing "no arrangement clips" errors.
 
 1. Call `get_song_context()` first in any new session before making
    track-specific calls.
-2. For arrangement or organisation tasks, call `get_track_structure()` next —
-   it gives the full track list with types and group nesting in one round trip,
-   without the cost of fetching devices or clips.
+2. For arrangement or organisation tasks, call `get_project_structure()` next —
+   it gives the full track list with types, group nesting, and mute/solo state
+   in one round trip, without the cost of fetching devices or clips.
 3. Call `get_track_info()` before `get_device_params()` — you need the
    device list before you can inspect parameters.
 4. Call `get_device_params()` before `set_device_param()` — you need the
@@ -434,35 +458,63 @@ async def get_song_context(ctx: RunContext[AbletonDeps]) -> str:
     """Get high-level session info: tempo, time signature, and track count.
     Call this first at the start of any new session before making track-specific calls.
     """
-    song_ctx = await ctx.deps.ableton_client.get_song_context()
+    try:
+        song_ctx = await ctx.deps.ableton_client.get_song_context()
+    except RuntimeError as e:
+        return str(e)
     return format_song_context(song_ctx)
 
 
 @ableton_agent.tool
-async def get_track_structure(ctx: RunContext[AbletonDeps]) -> str:
-    """Get the structural overview of all tracks: index, name, type (group/midi/audio),
-    and whether each track is nested inside a group.
+async def get_project_structure(ctx: RunContext[AbletonDeps]) -> str:
+    """Get a structural overview of all tracks: index, name, type (group/midi/audio),
+    group nesting, mute state, solo state, and color.
 
     Use this before any arrangement or organisation task to map out the session's
     functional layers (kick, bass, synths, pads, etc.) without fetching heavy device
-    or clip data. It replaces ad-hoc live_eval calls for track enumeration.
+    or clip data. Muted/soloed tracks and shared colors are important context —
+    reason through them before planning any changes.
     """
-    structure = await ctx.deps.ableton_client.get_track_structure()
-    return format_track_structure(structure)
+    try:
+        structure = await ctx.deps.ableton_client.get_project_structure()
+    except RuntimeError as e:
+        return str(e)
+    return format_project_structure(structure)
 
 
 @ableton_agent.tool
 async def get_track_info(ctx: RunContext[AbletonDeps], track_index: int) -> str:
     """Get full information about a track: name, type, volume, pan, mute/solo/arm state,
-    device list, and session clip-slot count.
+    device list, and session clip-slot count. If the track is inside a group, the group's
+    info (including its device chain) is automatically appended so you see the full signal
+    path without a separate call.
     Use this before get_device_params to discover devices; prefer it over live_eval
     for single-track inspection.
 
     Args:
         track_index: 0-indexed track position.
     """
-    info = await ctx.deps.ableton_client.get_track_info(track_index)
-    return format_track_info(info)
+    try:
+        info = await ctx.deps.ableton_client.get_track_info(track_index)
+    except RuntimeError as e:
+        return str(e)
+
+    sections = [format_track_info(info)]
+
+    # Walk up the group chain so the agent sees all ancestor device chains.
+    # Cap at 4 levels to guard against unexpected circular references.
+    current = info
+    for _ in range(4):
+        if not current.is_grouped or current.group_index is None:
+            break
+        try:
+            group_info = await ctx.deps.ableton_client.get_track_info(current.group_index)
+        except RuntimeError:
+            break
+        sections.append(format_track_info(group_info, label="Parent group"))
+        current = group_info
+
+    return "\n\n".join(sections)
 
 
 @ableton_agent.tool
@@ -482,6 +534,23 @@ async def get_arrangement_clips(ctx: RunContext[AbletonDeps], track_index: int) 
 
 
 @ableton_agent.tool
+async def get_session_clips(ctx: RunContext[AbletonDeps], track_index: int) -> str:
+    """Get all occupied session-view clip slots on a track with name, length, and play state.
+
+    Use this instead of live_eval whenever you need to inspect what clips exist in
+    the session grid. Only occupied slots are returned — empty slots are omitted.
+
+    Args:
+        track_index: 0-indexed track position.
+    """
+    try:
+        data = await ctx.deps.ableton_client.get_session_clips(track_index)
+        return format_session_clips(data)
+    except RuntimeError as e:
+        return str(e)
+
+
+@ableton_agent.tool
 async def get_device_params(
     ctx: RunContext[AbletonDeps], track_id: int, device_id: int
 ) -> str:
@@ -492,9 +561,12 @@ async def get_device_params(
         track_id: 0-indexed track position.
         device_id: 0-indexed device position in the track's device chain.
     """
-    device_params = await ctx.deps.ableton_client.get_device_parameters(
-        track_id, device_id
-    )
+    try:
+        device_params = await ctx.deps.ableton_client.get_device_parameters(
+            track_id, device_id
+        )
+    except RuntimeError as e:
+        return str(e)
     if device_params is None:
         return f"Device {device_id} on track {track_id} not found"
     return format_device_params(device_params)
@@ -514,7 +586,10 @@ async def create_rack(
         track_index: 0-indexed track position.
         rack_type: "audio_effect" for Audio Effect Rack, "instrument" for Instrument Rack.
     """
-    return await ctx.deps.ableton_client.create_rack(track_index, rack_type)
+    try:
+        return await ctx.deps.ableton_client.create_rack(track_index, rack_type)
+    except RuntimeError as e:
+        return str(e)
 
 
 @ableton_agent.tool
@@ -535,9 +610,12 @@ async def add_device_to_rack(
         device_name: Exact native device name (e.g. "Compressor", "EQ Eight", "Reverb").
         chain_index: 0-indexed chain inside the rack (default 0).
     """
-    return await ctx.deps.ableton_client.add_device_to_rack(
-        track_index, rack_device_index, device_name, chain_index
-    )
+    try:
+        return await ctx.deps.ableton_client.add_device_to_rack(
+            track_index, rack_device_index, device_name, chain_index
+        )
+    except RuntimeError as e:
+        return str(e)
 
 
 @ableton_agent.tool
@@ -558,9 +636,12 @@ async def set_device_param(
 
     Returns: The updated value as a string.
     """
-    return await ctx.deps.ableton_client.set_parameter(
-        track_id, device_id, param_id, value
-    )
+    try:
+        return await ctx.deps.ableton_client.set_parameter(
+            track_id, device_id, param_id, value
+        )
+    except RuntimeError as e:
+        return str(e)
 
 
 @ableton_agent.tool
