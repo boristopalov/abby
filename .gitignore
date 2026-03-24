@@ -13,3 +13,6 @@ __pycache__/
 *.db
 *.log
 tasks/
+live-*.xml
+backend/stubs/
+backend/scripts/generate_live_stubs.py

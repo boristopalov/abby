@@ -1,14 +1,13 @@
 import { writable, get } from "svelte/store";
-import { activeSessionId } from "./sessionStore.ts";
+import { activeSessionId } from "./sessionStore";
 import {
   globalMessages,
   addGlobalMessage,
   updateLastGlobalMessage,
   updateGlobalMessageByToolCallId,
-  clearAllMessages,
-} from "./chatStore.ts";
-import { getSessionMessages } from "./apiCalls.ts";
-import { loading, indexing, parameterChanges, tracks, projectState } from "./state.svelte.ts";
+} from "./chatStore";
+import { getSessionMessages } from "./apiCalls";
+import { parameterChanges, tracks, projectState } from "./state.svelte";
 import type { ParameterChange, Track } from "../types.d.ts";
 
 interface WebSocketState {
@@ -34,7 +33,11 @@ interface WebSocketMessage {
   content: string | number | ParameterChange | Track[] | object;
   arguments?: Record<string, unknown>;
   tool_call_id?: string;
-  requests?: Array<{ tool_call_id: string; tool_name: string; arguments: Record<string, unknown> }>;
+  requests?: Array<{
+    tool_call_id: string;
+    tool_name: string;
+    arguments: Record<string, unknown>;
+  }>;
 }
 
 const createWebSocketStore = () => {
@@ -81,14 +84,8 @@ const createWebSocketStore = () => {
         break;
       }
       case "loading_progress":
-        // no-op: superseded by indexing_status
+        // no-op currently
         break;
-      case "indexing_status": {
-        const status = data.content as { isIndexing: boolean; progress?: number };
-        indexing.isIndexing = status.isIndexing;
-        if (status.progress !== undefined) indexing.progress = status.progress;
-        break;
-      }
       case "parameter_change":
         parameterChanges.changes.push(data.content as ParameterChange);
         break;
@@ -146,7 +143,7 @@ const createWebSocketStore = () => {
       }
 
       const ws = new WebSocket(
-        `ws://localhost:8000/ws?sessionId=${sessionId}&projectId=${projectId}`
+        `ws://localhost:8000/ws?sessionId=${sessionId}&projectId=${projectId}`,
       );
 
       ws.onopen = async () => {

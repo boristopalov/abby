@@ -17,6 +17,8 @@
     let chatInput = $state("");
     let textareaEl: HTMLTextAreaElement | undefined = $state(undefined);
     let messagesContainer: HTMLDivElement | undefined = $state(undefined);
+    let sentinel: HTMLDivElement | undefined = $state(undefined);
+    let isAtBottom = $state(true);
     let isSelectingTrack = $state(false);
     let selectedTracks = $state<Track[]>([]);
     let filteredTracks = $derived(getFilteredTracks());
@@ -108,22 +110,33 @@
         const approvals = Object.fromEntries(
             (message.requests ?? []).map((r) => [r.tool_call_id, approved]),
         );
-        updateLastPendingApproval((msg) => ({
+        updateLastPendingApproval((msg: ChatMessage) => ({
             ...msg,
             approvalState: approved ? "approved" : "denied",
         }));
         wsStore.sendApproval(approvals);
     }
 
-    // Scroll to bottom when new messages arrive
     $effect(() => {
-        if (messagesContainer && messages.length > 0) {
+        if (!sentinel || !messagesContainer) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => { isAtBottom = entry.isIntersecting; },
+            { root: messagesContainer },
+        );
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    });
+
+    // Scroll to bottom when new messages arrive, but only if already at bottom
+    $effect(() => {
+        if (messagesContainer && messages.length > 0 && isAtBottom) {
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
     });
 
     // Auto-resize textarea as content changes
     $effect(() => {
+        chatInput; // track so this re-runs on every keystroke
         if (textareaEl) {
             textareaEl.style.height = "auto";
             textareaEl.style.height = textareaEl.scrollHeight + "px";
@@ -242,6 +255,7 @@
                     {/if}
                 </div>
             {/each}
+            <div bind:this={sentinel}></div>
         </div>
     </div>
 
@@ -676,8 +690,6 @@
 
     /* ── Input area ── */
     .chat-input-area {
-        border-top: 1px solid var(--border-light);
-        background: var(--surface);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -771,6 +783,7 @@
         background: var(--bg);
         overflow: hidden;
         transition: border-color 0.15s;
+        box-shadow: var(--shadow-md);
     }
     .input-row:focus-within {
         border-color: var(--accent);
@@ -787,7 +800,7 @@
         color: var(--ink);
         line-height: 1.5;
         resize: none;
-        max-height: 12rem;
+        max-height: 50vh;
         overflow-y: auto;
     }
     .chat-input::placeholder {

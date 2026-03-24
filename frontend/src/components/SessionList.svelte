@@ -1,22 +1,15 @@
 <script lang="ts">
     import { slide } from "svelte/transition";
     import { onMount } from "svelte";
-    import type { ChatSession, Track } from "../types";
+    import type { ChatSession } from "../types";
     import { getSessions } from "../lib/apiCalls";
     import { activeSessionId } from "../lib/sessionStore";
 
-    let {
-        showSessionPanel,
-        onToggle,
-        onSessionSelect,
-        onNewChat,
-        tracks = [],
-    } = $props<{
+    let { showSessionPanel, onToggle, onSessionSelect, onNewChat } = $props<{
         showSessionPanel: boolean;
         onToggle: () => void;
         onSessionSelect: (sessionId: string) => void;
         onNewChat: () => void;
-        tracks?: Track[];
     }>();
 
     let sessions = $state<ChatSession[]>([]);
@@ -84,9 +77,13 @@
                 {#each sessions as session (session.id)}
                     <button
                         onclick={() => handleSessionClick(session.id)}
-                        class="session-entry {$activeSessionId === session.id ? 'session-entry--active' : ''}"
+                        class="session-entry {$activeSessionId === session.id
+                            ? 'session-entry--active'
+                            : ''}"
                     >
-                        <div class="session-date">{formatDate(session.createdAt)}</div>
+                        <div class="session-date">
+                            {formatDate(session.createdAt)}
+                        </div>
                         <div class="session-name">{session.name}</div>
                     </button>
                 {/each}
@@ -156,7 +153,9 @@
         color: var(--ink-2);
         cursor: pointer;
         letter-spacing: 0.01em;
-        transition: border-color 0.15s, color 0.15s;
+        transition:
+            border-color 0.15s,
+            color 0.15s;
     }
     .btn-new-chat:hover {
         border-color: var(--accent);
@@ -179,7 +178,9 @@
         font-style: italic;
         margin: 0;
     }
-    .session-error { color: #b05050; }
+    .session-error {
+        color: #b05050;
+    }
 
     /* ── Session entries — journal style ── */
     .session-entry {
@@ -190,11 +191,13 @@
         border-left: 3px solid transparent;
         padding: 0.6rem 1rem 0.6rem 0.875rem;
         cursor: pointer;
-        transition: background 0.12s, border-color 0.12s;
+        transition:
+            background 0.12s,
+            border-color 0.12s;
         position: relative;
     }
     .session-entry:not(:last-child)::after {
-        content: '';
+        content: "";
         display: block;
         position: absolute;
         bottom: 0;
@@ -245,7 +248,9 @@
         color: var(--ink-3);
         cursor: pointer;
         z-index: 10;
-        transition: color 0.15s, background 0.15s;
+        transition:
+            color 0.15s,
+            background 0.15s;
         box-shadow: var(--shadow-sm);
     }
     .sidebar-toggle:hover {

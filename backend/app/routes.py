@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from app.skills import SkillRegistry, get_skill_registry
+
 from .ableton_client import AbletonClient, get_ableton_client
 from .agent import ChatService
 from .analytics import AnalyticsService, get_analytics_service
@@ -49,6 +51,7 @@ def get_session_messages(
     session_id: str,
     chat_repo: ChatRepository = Depends(get_chat_repository),
     ableton_client: AbletonClient = Depends(get_ableton_client),
+    skill_registry: SkillRegistry = Depends(get_skill_registry),
 ):
     try:
         logger.info(
@@ -62,7 +65,7 @@ def get_session_messages(
             )
             raise HTTPException(status_code=404, detail="Session not found")
 
-        chat_service = ChatService(chat_repo, ableton_client)
+        chat_service = ChatService(chat_repo, ableton_client, skill_registry)
         messages = chat_service.get_messages_for_display(session_id)
 
         logger.info(

@@ -27,6 +27,7 @@ from pydantic_ai.messages import TextPart as MsgTextPart
 
 from .ableton_client import AbletonClient
 from .db.chat_repository import ChatRepository
+from .skills import SkillRegistry
 from .events import (
     AgentEvent,
     ApprovalRequest,
@@ -56,10 +57,16 @@ direct access to the user's session and can read and modify it in real time.
 
 ## Who You Are
 
-You help producers at every skill level — from beginners learning fundamentals
-to professionals automating repetitive workflows. Your tone is direct and
-practical with minimal fluff. You explain the reasoning behind decisions, not just the decision
-itself.
+You are a skilled executor with no opinions. You help producers at every skill
+level — from beginners learning fundamentals to professionals automating
+repetitive workflows. Your tone is direct and practical with minimal fluff.
+
+You execute the human's creative vision, provide knowledge on demand, and
+handle tedious work. You do not have aesthetic preferences. When you suggest
+a technique, frame it as a diagnostic observation ("your compressor ratio is
+8:1 — that's aggressive for a pad, typical range is 2:1–4:1") rather than a
+taste judgment ("I think this would sound better"). The human decides what
+sounds good. You explain trade-offs and let them choose.
 
 ---
 
@@ -88,6 +95,27 @@ itself.
   name as it appears in their Ableton browser before attempting to add a
   plugin not on the native device list.
 
+- **You have no taste.** You know what is *conventional* for a genre, but
+  conventional and good are different things. Never position a suggestion as
+  the right answer — present it as a starting point the user should evaluate
+  by listening. When multiple valid approaches exist, lay them out with
+  trade-offs instead of picking one.
+
+- **MIDI you write is on the grid.** Quantized notes can sound mechanical,
+  especially for drums, bass, and melodic lines. After writing MIDI, remind
+  the user they may want to add swing or humanize the timing to taste.
+
+- **You cannot predict how devices interact sonically.** You can set up a
+  signal chain, but you cannot hear how a compressor reacts to a reverb tail,
+  or how parallel distortion changes perceived loudness. After building a
+  chain, tell the user to listen through and adjust.
+
+- **You are biased toward action.** You will happily add more layers, more
+  effects, more automation. But overproduction is one of the most common
+  failure modes in music production. If a session already has a lot going on,
+  it is appropriate to say "this section is already dense — are you sure you
+  want to add more here?" The simpler version is often better.
+
 ---
 
 ## How to Respond
@@ -108,16 +136,31 @@ Specific references beat hypotheticals.
 **After setting a parameter, remind the user to verify.** Normalization
 curves mean the displayed value may not match the number you passed.
 
+**Translate vibes into concrete starting points.** When the user describes a
+mood or direction ("dark and driving", "lush and ambient"), map it to concrete
+parameters — tempo range, key/scale, instrumentation density, effects
+character — and present them as a starting point to react to, not a
+prescription.
+
+**Maintain creative continuity.** Reference the user's stated intent and
+earlier creative decisions throughout the conversation. If they said "early
+Aphex Twin vibes" ten messages ago, filter subsequent suggestions through
+that lens. Don't treat each message in isolation.
+
 ---
 
 ## Domain Knowledge
 
 ### Mixing
 
-Use compressors, gates, EQ, limiting, and saturation with an understanding
-of signal flow. Know typical threshold, ratio, attack, and release ranges
-by instrument and genre. Understand sidechain compression, parallel
-compression, and mid-side processing. Know when to cut vs. boost on EQ.
+You can diagnose mix issues structurally — frequency overlap, gain staging
+problems, missing high-end, excessive low-end buildup — and suggest corrective
+moves. But mix advice is diagnostic, not prescriptive: you can say "your kick
+and bass both have energy at 60–80 Hz, which may cause mud" but you cannot
+tell the user which one to cut, because that depends on how it sounds in
+context. Present EQ, compression, and saturation suggestions as ranges with
+trade-offs, not single values. Understand sidechain compression, parallel
+compression, and mid-side processing.
 
 ### Sound Design
 
@@ -129,8 +172,12 @@ modulation routing (LFOs, envelopes, macros) clearly.
 
 Genre-specific structure: section lengths, layering, energy arcs. Transition
 techniques (risers, drops, fills, breakdowns) and when each applies. Reference
-actual clips and tracks in the session when available. Focus on structure —
-you cannot judge feel or groove.
+actual clips and tracks in the session when available.
+
+You can scaffold structure, but you cannot judge whether the emotional arc
+lands. After laying out sections, tell the user to listen through and decide
+if the energy builds the way they want — tension, release, and pacing are
+felt, not calculated.
 
 **Before arranging, always understand track grouping.**
 A session with 30–40 tracks is not 30–40 independent arrangement layers — it
@@ -361,23 +408,29 @@ which tool to use and prevents confusing "no arrangement clips" errors.
 
 
 @dataclass
-class AbletonDeps:
+class AgentDeps:
     project_id: int
     ableton_client: AbletonClient
+    skill_registry: SkillRegistry
 
 
 # TODO: swap to claude
 ableton_agent = Agent(
     "anthropic:claude-sonnet-4-6",
     system_prompt=SYSTEM_PROMPT,
-    deps_type=AbletonDeps,
+    deps_type=AgentDeps,
     output_type=[str, DeferredToolRequests],
 )
 
 
+@ableton_agent.system_prompt
+def skill_catalog_prompt(ctx: RunContext[AgentDeps]) -> str:
+    return ctx.deps.skill_registry.catalog_text()
+
+
 # Unused for now
 # @ableton_agent.tool
-# async def get_track_clips(ctx: RunContext[AbletonDeps], track_id: int) -> str:
+# async def get_track_clips(ctx: RunContext[AgentDeps], track_id: int) -> str:
 #     """Get list of arrangement clips on a track with length, type (MIDI/audio), loop status.
 
 #     Args:
@@ -413,7 +466,7 @@ ableton_agent = Agent(
 # Unused for now
 # @ableton_agent.tool
 # async def get_clip_notes(
-#     ctx: RunContext[AbletonDeps], track_id: int, clip_id: int
+#     ctx: RunContext[AgentDeps], track_id: int, clip_id: int
 # ) -> str:
 #     """Analyze MIDI clip content: note count, pitch range, velocity stats, rhythm density.
 #     Only works on MIDI clips, not audio.
@@ -454,7 +507,7 @@ ableton_agent = Agent(
 
 
 @ableton_agent.tool
-async def get_song_context(ctx: RunContext[AbletonDeps]) -> str:
+async def get_song_context(ctx: RunContext[AgentDeps]) -> str:
     """Get high-level session info: tempo, time signature, and track count.
     Call this first at the start of any new session before making track-specific calls.
     """
@@ -466,7 +519,7 @@ async def get_song_context(ctx: RunContext[AbletonDeps]) -> str:
 
 
 @ableton_agent.tool
-async def get_project_structure(ctx: RunContext[AbletonDeps]) -> str:
+async def get_project_structure(ctx: RunContext[AgentDeps]) -> str:
     """Get a structural overview of all tracks: index, name, type (group/midi/audio),
     group nesting, mute state, solo state, and color.
 
@@ -483,7 +536,7 @@ async def get_project_structure(ctx: RunContext[AbletonDeps]) -> str:
 
 
 @ableton_agent.tool
-async def get_track_info(ctx: RunContext[AbletonDeps], track_index: int) -> str:
+async def get_track_info(ctx: RunContext[AgentDeps], track_index: int) -> str:
     """Get full information about a track: name, type, volume, pan, mute/solo/arm state,
     device list, and session clip-slot count. If the track is inside a group, the group's
     info (including its device chain) is automatically appended so you see the full signal
@@ -518,7 +571,7 @@ async def get_track_info(ctx: RunContext[AbletonDeps], track_index: int) -> str:
 
 
 @ableton_agent.tool
-async def get_arrangement_clips(ctx: RunContext[AbletonDeps], track_index: int) -> str:
+async def get_arrangement_clips(ctx: RunContext[AgentDeps], track_index: int) -> str:
     """Get all arrangement-view clips on a track with names, beat positions, and type.
     Only works on regular MIDI/audio tracks — group and return tracks will return an error.
     Use this when the user is in Arrangement view or asks about arrangement structure.
@@ -534,7 +587,7 @@ async def get_arrangement_clips(ctx: RunContext[AbletonDeps], track_index: int) 
 
 
 @ableton_agent.tool
-async def get_session_clips(ctx: RunContext[AbletonDeps], track_index: int) -> str:
+async def get_session_clips(ctx: RunContext[AgentDeps], track_index: int) -> str:
     """Get all occupied session-view clip slots on a track with name, length, and play state.
 
     Use this instead of live_eval whenever you need to inspect what clips exist in
@@ -552,7 +605,7 @@ async def get_session_clips(ctx: RunContext[AbletonDeps], track_index: int) -> s
 
 @ableton_agent.tool
 async def get_device_params(
-    ctx: RunContext[AbletonDeps], track_id: int, device_id: int
+    ctx: RunContext[AgentDeps], track_id: int, device_id: int
 ) -> str:
     """Get all parameters for a specific device with human-readable values.
     Use after get_track_info to inspect a specific device.
@@ -574,7 +627,7 @@ async def get_device_params(
 
 @ableton_agent.tool
 async def create_rack(
-    ctx: RunContext[AbletonDeps],
+    ctx: RunContext[AgentDeps],
     track_index: int,
     rack_type: str,
 ) -> str:
@@ -594,7 +647,7 @@ async def create_rack(
 
 @ableton_agent.tool
 async def add_device_to_rack(
-    ctx: RunContext[AbletonDeps],
+    ctx: RunContext[AgentDeps],
     track_index: int,
     rack_device_index: int,
     device_name: str,
@@ -620,7 +673,7 @@ async def add_device_to_rack(
 
 @ableton_agent.tool
 async def set_device_param(
-    ctx: RunContext[AbletonDeps],
+    ctx: RunContext[AgentDeps],
     track_id: int,
     device_id: int,
     param_id: int,
@@ -645,7 +698,7 @@ async def set_device_param(
 
 
 @ableton_agent.tool
-async def search_live_api(ctx: RunContext[AbletonDeps], query: str) -> str:
+async def search_live_api(ctx: RunContext[AgentDeps], query: str) -> str:
     """Search the Ableton Live Python API documentation.
 
     The docs were generated by decompiling Ableton's .pyc bytecode and reflect
@@ -671,7 +724,7 @@ async def search_live_api(ctx: RunContext[AbletonDeps], query: str) -> str:
 
 @ableton_agent.tool
 async def send_raw_command(
-    ctx: RunContext[AbletonDeps],
+    ctx: RunContext[AgentDeps],
     cmd_type: str,
     params: dict[str, Any],
 ) -> str:
@@ -705,7 +758,7 @@ async def send_raw_command(
 
 @ableton_agent.tool
 async def fill_arrangement_section(
-    ctx: RunContext[AbletonDeps],
+    ctx: RunContext[AgentDeps],
     track_index: int,
     source_slot: int,
     start_beat: float,
@@ -741,7 +794,7 @@ async def fill_arrangement_section(
 
 @ableton_agent.tool(requires_approval=True)
 async def clear_track_arrangement(
-    ctx: RunContext[AbletonDeps],
+    ctx: RunContext[AgentDeps],
     track_index: int,
 ) -> str:
     """Delete all arrangement clips on a track.
@@ -766,7 +819,7 @@ async def clear_track_arrangement(
 
 @ableton_agent.tool(requires_approval=True)
 async def delete_arrangement_clip(
-    ctx: RunContext[AbletonDeps],
+    ctx: RunContext[AgentDeps],
     track_index: int,
     clip_index: int,
 ) -> str:
@@ -792,7 +845,7 @@ async def delete_arrangement_clip(
 
 @ableton_agent.tool
 async def create_midi_arrangement_clip(
-    ctx: RunContext[AbletonDeps],
+    ctx: RunContext[AgentDeps],
     track_index: int,
     start_beat: float,
     length: float,
@@ -819,7 +872,7 @@ async def create_midi_arrangement_clip(
 
 @ableton_agent.tool
 async def create_audio_arrangement_clip(
-    ctx: RunContext[AbletonDeps],
+    ctx: RunContext[AgentDeps],
     track_index: int,
     file_path: str,
     start_beat: float,
@@ -848,7 +901,7 @@ async def create_audio_arrangement_clip(
 
 @ableton_agent.tool
 async def create_session_clip(
-    ctx: RunContext[AbletonDeps],
+    ctx: RunContext[AgentDeps],
     track_index: int,
     slot_index: int,
     length: float,
@@ -876,7 +929,7 @@ async def create_session_clip(
 
 @ableton_agent.tool
 async def add_notes_to_session_clip(
-    ctx: RunContext[AbletonDeps],
+    ctx: RunContext[AgentDeps],
     track_index: int,
     slot_index: int,
     notes: list[dict],
@@ -908,7 +961,7 @@ async def add_notes_to_session_clip(
 
 @ableton_agent.tool
 async def add_notes_to_arrangement_clip(
-    ctx: RunContext[AbletonDeps],
+    ctx: RunContext[AgentDeps],
     track_index: int,
     clip_index: int,
     notes: list[dict],
@@ -939,14 +992,29 @@ async def add_notes_to_arrangement_clip(
         return f"Error: {e}"
 
 
+@ableton_agent.tool
+async def load_skill(ctx: RunContext[AgentDeps], name: str) -> str:
+    """Load the full instructions for an available skill.
+
+    Call this when a skill's description matches the current task. The skill's
+    name must exactly match one listed in the Skills catalog.
+
+    Args:
+        name: Skill name as listed in the catalog (e.g. "arrangement-helper").
+    """
+    return ctx.deps.skill_registry.load_body(name)
+
+
 class ChatService:
     def __init__(
         self,
         chat_repo: ChatRepository,
         ableton_client: AbletonClient,
+        skill_registry: SkillRegistry,
     ):
         self.chat_repo = chat_repo
         self.ableton_client = ableton_client
+        self.skill_registry = skill_registry
         # Holds DeferredToolRequests for sessions paused waiting for approval.
         self._pending_deferred: dict[str, DeferredToolRequests] = {}
 
@@ -956,7 +1024,7 @@ class ChatService:
         session_id: str,
         user_prompt: str | None,
         message_history: list,
-        deps: AbletonDeps,
+        deps: AgentDeps,
         deferred_tool_results: DeferredToolResults | None = None,
     ) -> AsyncGenerator[AgentEvent, None]:
         """Route run_stream_events to typed AgentEvents.
@@ -1033,9 +1101,10 @@ class ChatService:
 
         logger.info(f"Processing message for session {session_id}")
 
-        deps = AbletonDeps(
+        deps = AgentDeps(
             project_id=project_id,
             ableton_client=self.ableton_client,
+            skill_registry=self.skill_registry,
         )
 
         try:
@@ -1083,9 +1152,10 @@ class ChatService:
                 for call_id, approved in approvals.items()
             }
         )
-        deps = AbletonDeps(
+        deps = AgentDeps(
             project_id=project_id,
             ableton_client=self.ableton_client,
+            skill_registry=self.skill_registry,
         )
 
         try:

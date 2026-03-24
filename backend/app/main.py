@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .ableton_client import AbletonClient, get_ableton_client
 from .agent import ChatService
+from .skills import SkillRegistry, get_skill_registry
 from .analytics import AnalyticsService, get_analytics_service
 from .db.chat_repository import ChatRepository, get_chat_repository
 from .db.models import init_db
@@ -51,6 +52,7 @@ async def websocket_endpoint(
     project_repo: ProjectRepository = Depends(get_project_repository),
     chat_repo: ChatRepository = Depends(get_chat_repository),
     ableton_client: AbletonClient = Depends(get_ableton_client),
+    skill_registry: SkillRegistry = Depends(get_skill_registry),
     analytics: AnalyticsService = Depends(get_analytics_service),
 ):
     if not sessionId:
@@ -69,7 +71,7 @@ async def websocket_endpoint(
         await websocket.close(code=4002, reason="Project not found")
         return
 
-    chat_service = ChatService(chat_repo, ableton_client)
+    chat_service = ChatService(chat_repo, ableton_client, skill_registry)
     session_start_time = time.monotonic()
     message_count = 0
     try:
@@ -224,6 +226,7 @@ async def websocket_audio_endpoint(
     project_repo: ProjectRepository = Depends(get_project_repository),
     chat_repo: ChatRepository = Depends(get_chat_repository),
     ableton_client: AbletonClient = Depends(get_ableton_client),
+    skill_registry: SkillRegistry = Depends(get_skill_registry),
     tts_client: Optional[TTSClient] = Depends(get_tts_client),
     analytics: AnalyticsService = Depends(get_analytics_service),
 ):
@@ -248,7 +251,7 @@ async def websocket_audio_endpoint(
         await websocket.close(code=4003, reason="TTS not configured")
         return
 
-    chat_service = ChatService(chat_repo, ableton_client)
+    chat_service = ChatService(chat_repo, ableton_client, skill_registry)
     session_start_time = time.monotonic()
     message_count = 0
     try:

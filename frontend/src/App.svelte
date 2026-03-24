@@ -8,8 +8,6 @@
     } from "./lib/apiCalls";
     import SessionList from "./components/SessionList.svelte";
     import ConnectionStatus from "./components/ConnectionStatus.svelte";
-    import IndexingBanner from "./components/IndexingBanner.svelte";
-    import ParameterPanel from "./components/ParameterPanel.svelte";
     import Chat from "./components/Chat.svelte";
     import {
         globalMessages,
@@ -125,8 +123,8 @@
                         (p) => p.id === projectState.activeProjectId,
                     )?.name || "Unknown"}
                 </span>
-                <button onclick={changeProject} class="btn-subtle">
-                    Change Project
+                <button onclick={startNewSession} class="btn-subtle">
+                    New Chat
                 </button>
             {/if}
             <ConnectionStatus isConnected={$wsStore.isConnected} />
@@ -199,7 +197,6 @@
                 onToggle={() => (showSessionPanel = !showSessionPanel)}
                 onSessionSelect={handleSessionSelect}
                 onNewChat={startNewSession}
-                tracks={tracks.tracks}
             />
 
             <div class="main-column">
@@ -218,12 +215,6 @@
                     }}
                 />
             </div>
-
-            <ParameterPanel
-                parameterChanges={parameterChanges.changes}
-                {showParameterPanel}
-                onToggle={() => (showParameterPanel = !showParameterPanel)}
-            />
         </div>
     {/if}
 </main>

@@ -4,11 +4,6 @@ export const loading = $state({
   progress: 0,
 });
 
-export const indexing = $state({
-  isIndexing: false,
-  progress: 0,
-});
-
 export const parameterChanges = $state<{
   changes: ParameterChange[];
 }>({

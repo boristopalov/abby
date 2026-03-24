@@ -22,7 +22,9 @@ export function addGlobalMessage(message: ChatMessage) {
   globalMessages.update((messages) => [...messages, message]);
 }
 
-export function updateLastGlobalMessage(updater: (msg: ChatMessage) => ChatMessage) {
+export function updateLastGlobalMessage(
+  updater: (msg: ChatMessage) => ChatMessage,
+) {
   globalMessages.update((messages) => {
     if (messages.length === 0) return messages;
     return [...messages.slice(0, -1), updater(messages[messages.length - 1])];

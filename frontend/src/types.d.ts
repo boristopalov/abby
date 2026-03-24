@@ -8,7 +8,12 @@ export interface ChatMessage {
   text: string;
   isUser: boolean;
   timestamp?: number;
-  type?: "text" | "function_call" | "function_result" | "error" | "approval_required";
+  type?:
+    | "text"
+    | "function_call"
+    | "function_result"
+    | "error"
+    | "approval_required";
   arguments?: Record<string, unknown>;
   tool_call_id?: string;
   result?: string;
