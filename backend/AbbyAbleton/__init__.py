@@ -3,20 +3,44 @@ import json
 import threading
 import traceback
 
+import Live  # pyright: ignore
 from _Framework.ControlSurface import ControlSurface  # pyright: ignore
 
 DEFAULT_PORT = 9877
 HOST = "127.0.0.1"
 
 _SAFE_BUILTINS = {
-    "len": len, "range": range, "enumerate": enumerate, "zip": zip,
-    "list": list, "dict": dict, "tuple": tuple, "set": set,
-    "str": str, "int": int, "float": float, "bool": bool,
-    "min": min, "max": max, "sum": sum, "abs": abs, "round": round,
-    "sorted": sorted, "reversed": reversed, "map": map, "filter": filter,
-    "any": any, "all": all, "isinstance": isinstance,
-    "hasattr": hasattr, "getattr": getattr, "repr": repr, "type": type,
-    "None": None, "True": True, "False": False,
+    "len": len,
+    "range": range,
+    "enumerate": enumerate,
+    "zip": zip,
+    "list": list,
+    "dict": dict,
+    "tuple": tuple,
+    "set": set,
+    "str": str,
+    "int": int,
+    "float": float,
+    "bool": bool,
+    "min": min,
+    "max": max,
+    "sum": sum,
+    "abs": abs,
+    "round": round,
+    "sorted": sorted,
+    "reversed": reversed,
+    "map": map,
+    "filter": filter,
+    "any": any,
+    "all": all,
+    "isinstance": isinstance,
+    "hasattr": hasattr,
+    "getattr": getattr,
+    "repr": repr,
+    "type": type,
+    "None": None,
+    "True": True,
+    "False": False,
 }
 
 
@@ -175,7 +199,9 @@ class AbletonListener(ControlSurface):
             "get_session_info": lambda p: self._get_session_info(),
             "get_project_structure": lambda p: self._get_project_structure(),
             "get_track_info": lambda p: self._get_track_info(p["track_index"]),
-            "get_arrangement_clips": lambda p: self._get_arrangement_clips(p["track_index"]),
+            "get_arrangement_clips": lambda p: self._get_arrangement_clips(
+                p["track_index"]
+            ),
             "get_session_clips": lambda p: self._get_session_clips(p["track_index"]),
             "get_track_devices": lambda p: self._get_track_devices(p["track_index"]),
             "get_device_parameters": lambda p: self._get_device_parameters(
@@ -275,15 +301,17 @@ class AbletonListener(ControlSurface):
                 track_type = "midi"
             else:
                 track_type = "audio"
-            tracks.append({
-                "index": i,
-                "name": t.name,
-                "type": track_type,
-                "is_grouped": bool(getattr(t, "is_grouped", False)),
-                "mute": self._safe_track_prop(t, "mute", False),
-                "solo": self._safe_track_prop(t, "solo", False),
-                "color": self._safe_track_prop(t, "color", 0),
-            })
+            tracks.append(
+                {
+                    "index": i,
+                    "name": t.name,
+                    "type": track_type,
+                    "is_grouped": bool(getattr(t, "is_grouped", False)),
+                    "mute": self._safe_track_prop(t, "mute", False),
+                    "solo": self._safe_track_prop(t, "solo", False),
+                    "color": self._safe_track_prop(t, "color", False),
+                }
+            )
         return {"tracks": tracks}
 
     def _get_track_info(self, track_index):
@@ -386,14 +414,16 @@ class AbletonListener(ControlSurface):
         for slot_index, slot in enumerate(track.clip_slots):
             if slot.has_clip:
                 c = slot.clip
-                clips.append({
-                    "slot_index": slot_index,
-                    "name": c.name,
-                    "length": c.length,
-                    "is_midi": c.is_midi_clip,
-                    "is_playing": c.is_playing,
-                    "is_recording": self._safe_track_prop(c, "is_recording", False),
-                })
+                clips.append(
+                    {
+                        "slot_index": slot_index,
+                        "name": c.name,
+                        "length": c.length,
+                        "is_midi": c.is_midi_clip,
+                        "is_playing": c.is_playing,
+                        "is_recording": self._safe_track_prop(c, "is_recording", False),
+                    }
+                )
         return {"track_index": track_index, "track_name": track.name, "clips": clips}
 
     def _get_track_devices(self, track_index):
@@ -679,7 +709,7 @@ class AbletonListener(ControlSurface):
 
     def _add_notes_to_clip(self, track_index, clip_index, notes):
         """Add MIDI notes to a session-view clip using add_new_notes()."""
-        import Live  # noqa: PLC0415
+
         track = self._song.tracks[track_index]
         clip_slot = track.clip_slots[clip_index]
         if not clip_slot.has_clip:
@@ -700,7 +730,7 @@ class AbletonListener(ControlSurface):
 
     def _add_notes_to_arrangement_clip(self, track_index, clip_index, notes):
         """Add MIDI notes to an arrangement clip using add_new_notes()."""
-        import Live  # noqa: PLC0415
+
         track = self._song.tracks[track_index]
         clip = track.arrangement_clips[clip_index]
         specs = [
@@ -942,7 +972,11 @@ class AbletonListener(ControlSurface):
         self.log_message(f"_live_eval: {expr!r}")
         # song/app go in globals (not locals) so nested comprehensions can see them.
         # In Python 3, inner list comprehensions inherit globals, not the outer eval's locals.
-        ctx = {"__builtins__": _SAFE_BUILTINS, "song": self._song, "app": self.application()}
+        ctx = {
+            "__builtins__": _SAFE_BUILTINS,
+            "song": self._song,
+            "app": self.application(),
+        }
         value = eval(expr, ctx, {})  # noqa: S307
         result = repr(value)
         self.log_message(f"_live_eval result: {result[:200]}")
@@ -957,7 +991,11 @@ class AbletonListener(ControlSurface):
         Example params: {"code": "song.tracks[0].name = 'Kick'"}
         """
         self.log_message(f"_live_exec: {code!r}")
-        ctx = {"__builtins__": _SAFE_BUILTINS, "song": self._song, "app": self.application()}
+        ctx = {
+            "__builtins__": _SAFE_BUILTINS,
+            "song": self._song,
+            "app": self.application(),
+        }
         exec(code, ctx, {})  # noqa: S102
         self.log_message("_live_exec: ok")
         return {"ok": True}
@@ -1037,7 +1075,7 @@ class AbletonListener(ControlSurface):
         item = self._find_browser_item_by_name(app.browser.audio_effects, device_name)
         if not item:
             self.log_message(
-                f"_add_device_to_rack: not found in audio_effects, trying instruments"
+                "_add_device_to_rack: not found in audio_effects, trying instruments"
             )
             item = self._find_browser_item_by_name(app.browser.instruments, device_name)
         if not item:
