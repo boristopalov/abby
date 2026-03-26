@@ -43,11 +43,13 @@
 
         // Check for stored active project
         const storedProjectId = loadActiveProjectFromStorage();
-        if (
-            storedProjectId &&
-            projectState.projects.some((p) => p.id === storedProjectId)
-        ) {
-            wsStore.connect();
+        if (storedProjectId) {
+            if (projectState.projects.some((p) => p.id === storedProjectId)) {
+                wsStore.connect();
+            } else {
+                // Project no longer exists in DB, clear stale state
+                setActiveProject(null);
+            }
         }
     });
 
